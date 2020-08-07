@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 pyyaml = "*"
 vkwave = "*"
-Google-Images-Search = "*"
+urllib3 = "*"
 
 [dev-packages]
 

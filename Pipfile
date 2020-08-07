@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 pyyaml = "*"
 vkwave = "*"
-urllib3 = "*"
+requests = "*"
 
 [dev-packages]
 

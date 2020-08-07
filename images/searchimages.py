@@ -1,23 +1,22 @@
-import yaml
-import os
-
-from google_images_search import GoogleImagesSearch
-
+import urllib3
+import json
 
 class ImgSearch:
-    _gis: GoogleImagesSearch
 
     def __init__(self):
-        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'googleapi.yaml')) as c:
-            if not (os.environ['GAPI_KEY'] and os.environ['GPROJECT_CX']):
-                config = yaml.safe_load(c)
-            else:
-                config = { 'dev_api_key': os.environ['GAPI_KEY'], 'project_cx': os.environ['GPROJECT_CX'] }
-            self._gis = GoogleImagesSearch(config['dev_api_key'], config['project_cx'], validate_images=True)
+        self.http = urllib3.PoolManager()
 
-    def fetch(self, query, count):
+    def fetch(self, query):
         result = []
-        self._gis.search({'q': query, 'num': count, 'safe': 'off'})
-        for image in self._gis.results():
-            result.append(image.url)
+        r = self.http.request('GET', 'https://spot.ecloud.global', fields=
+        {"q": query,
+         "categories": "images",
+         "format": "json"
+         })
+        results = json.loads(r.data)['results']
+        for r in results:
+            if r['img_src'][-4:] in ['.gif', '.jpg', '.png']:
+                if r['img_src'][:4] != "http":
+                    r['img_src'] = "http:" + r['img_src']
+                result.append(r['img_src'])
         return result

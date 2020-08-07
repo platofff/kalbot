@@ -9,6 +9,7 @@ class ImgSearch:
          "categories": "images",
          "format": "json"
          })
+        print(r.text)
         results = json.loads(r.text)['results']
         for r in results:
             if r['img_src'][-4:] in ['.gif', '.jpg', '.png']:

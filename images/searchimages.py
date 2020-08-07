@@ -19,6 +19,7 @@ class ImgSearch:
                     "categories": "images",
                     "format": "json"
                 })
+                print(r.text)
                 results = json.loads(r.text)['results']
                 self._servers.pop(self._servers.index(server))
                 self._servers = [server] + self._servers

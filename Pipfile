@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 pyyaml = "*"
+vkwave = "*"
+Google-Images-Search = "*"
 
 [dev-packages]
 

@@ -62,12 +62,7 @@ class Bot:
                     query = f"kali {hex(event.object.object.message.from_id)[-2:]}"
                 else:
                     query = f"kali {event.object.object.message.text[4:]}"
-                linksAll = imgSearch.fetch(query, 5)
-                links = []
-                for i in range(len(linksAll)):
-                    if linksAll[i][-4:] in ['.png', '.jpg', '.gif']:
-                        links.append(linksAll[i])
-                del linksAll
+                links = imgSearch.fetch(query)
                 if links:
                     link = [links[randint(0, len(links) - 1)]]
                     await ApiMethods.sendImage(event.object.object.message.from_id, link)

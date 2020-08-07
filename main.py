@@ -35,10 +35,14 @@ botToken: Token
 gid: str
 ApiMethods: object
 
-with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vkapi.yaml')) as c:
-    config = yaml.safe_load(c)
-    botToken = Token(config["bot_token"])
-    gid = config["group_id"]
+if not (os.environ['VK_BOT_TOKEN'] and os.environ['VK_BOT_GID']):
+    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vkapi.yaml')) as c:
+        config = yaml.safe_load(c)
+        botToken = Token(config["bot_token"])
+        gid = config["group_id"]
+else:
+    botToken = os.environ['VK_BOT_TOKEN']
+    gid = os.environ['VK_BOT_GID']
 
 
 class Bot:

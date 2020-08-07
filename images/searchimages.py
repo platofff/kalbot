@@ -12,7 +12,7 @@ class ImgSearch:
     def fetch(self, query):
         result = []
         results = []
-        for server in self.servers:
+        for server in self._servers:
             try:
                 r = requests.get(server, params=
                     {"q": query,

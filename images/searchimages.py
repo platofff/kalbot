@@ -8,7 +8,7 @@ class ImgSearch:
 
     def fetch(self, query):
         result = []
-        r = self.http.request('GET', 'https://spot.ecloud.global', fields=
+        r = self.http.request('GET', 'https://searx.fmac.xyz', fields=
         {"q": query,
          "categories": "images",
          "format": "json"

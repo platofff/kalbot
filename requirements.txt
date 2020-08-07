@@ -1,3 +1,0 @@
-vkwave==0.2.7
-Google-Images-Search==1.2.1
-PyYAML==5.3.1

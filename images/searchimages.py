@@ -1,19 +1,18 @@
 import requests
 import json
 
-SERVERS = [
-"https://searx.xyz",
-"https://searx.privatenet.cf",
-"https://searx.gnu.style",
-"https://searx.be",
-"https://searx.nevrlands.de"
-]
-
 class ImgSearch:
+    _servers = [
+        "https://searx.xyz",
+        "https://searx.privatenet.cf",
+        "https://searx.gnu.style",
+        "https://searx.be",
+        "https://searx.nevrlands.de"
+    ]    
     def fetch(self, query):
         result = []
         results = []
-        for server in SERVERS:
+        for server in self.servers:
             try:
                 r = requests.get(server, params=
                     {"q": query,
@@ -21,7 +20,9 @@ class ImgSearch:
                     "format": "json"
                 })
                 results = json.loads(r.text)['results']
-            except JSONDecodeError:
+                self._servers.pop(self._servers.index(server))
+                self._servers = [server] + self._servers
+            except json.decoder.JSONDecodeError:
                 continue
         for r in results:
             if r['img_src'][-4:] in ['.gif', '.jpg', '.png']:

@@ -1,19 +1,12 @@
-from typing import Callable, Awaitable, Any
-from random import randint, choice
-from string import ascii_letters as ASCII_LETTERS
-
-from vkwave.bots.core import BaseFilter
-from vkwave.bots.core.dispatching.filters.base import FilterResult
-from vkwave.bots.core.dispatching.handler.callback import BaseCallback
-
-from images.searchimages import ImgSearch
-import yaml
-import os
-import logging
 import asyncio
 import base64
+import logging
+import os
+from random import randint, choice
+from string import ascii_letters as ASCII_LETTERS
+from typing import Callable, Awaitable, Any
 
-from vkwave.client import AIOHTTPClient
+import yaml
 from vkwave.api import BotSyncSingleToken, Token, API
 from vkwave.bots import (
     TokenStorage,
@@ -26,23 +19,28 @@ from vkwave.bots import (
     BaseEvent,
     PhotoUploader,
 )
-from vkwave.types.bot_events import BotEventType
+from vkwave.bots.core import BaseFilter
+from vkwave.bots.core.dispatching.filters.base import FilterResult
+from vkwave.bots.core.dispatching.handler.callback import BaseCallback
+from vkwave.client import AIOHTTPClient
 from vkwave.longpoll import BotLongpollData, BotLongpoll
+from vkwave.types.bot_events import BotEventType
 
+from images.searchimages import ImgSearch
 
 logging.basicConfig(level=logging.DEBUG)
 botToken: Token
-gid: str
+gid: int
 ApiMethods: object
 
 if not (os.environ['VK_BOT_TOKEN'] and os.environ['VK_BOT_GID']):
     with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vkapi.yaml')) as c:
         config = yaml.safe_load(c)
         botToken = Token(config["bot_token"])
-        gid = config["group_id"]
+        gid = int(config["group_id"])
 else:
-    botToken = os.environ['VK_BOT_TOKEN']
-    gid = os.environ['VK_BOT_GID']
+    botToken = Token(os.environ['VK_BOT_TOKEN'])
+    gid = int(os.environ['VK_BOT_GID'])
 
 
 class Bot:
@@ -95,6 +93,11 @@ class Bot:
 
                 return bashEncode("sudo chmod 777 -R /")
 
+        class Demotivator:
+            @staticmethod
+            async def run(event: BotEvent):
+                return f"{dir(event.object.object.message)}"
+
     class _TextFilters:
         filters = []
 
@@ -110,6 +113,10 @@ class Bot:
         class Optimisation(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() in ["оптимизация", "optimisation"])
+
+        class Demotivator(BaseFilter):
+            async def check(self, event: BotEvent) -> FilterResult:
+                return FilterResult(event.object.object.message.text.lower() in ["демотиватор", "demotivator"])
 
         def __init__(self):
             for member in dir(self):

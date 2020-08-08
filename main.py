@@ -116,7 +116,7 @@ class Bot:
                     query = f"kali {event.object.object.message.text[4:]}"
                     links = imgSearch.fetch(query)
                     if links:
-                        link = [links[randint(0, len(links) - 1)]]
+                        link = links[randint(0, len(links) - 1)]
                     else:
                         return "kалов не найдено((9("
                     d = demotivator.create(

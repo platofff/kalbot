@@ -96,7 +96,7 @@ class Bot:
         class Demotivator:
             @staticmethod
             async def run(event: BotEvent):
-                return f"{dir(event.object.object.message.attachments[0])}"
+                return f"{event.object.object.message.attachments[0].photo.url}"
 
     class _TextFilters:
         filters = []
@@ -116,7 +116,7 @@ class Bot:
 
         class Demotivator(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
-                return FilterResult(event.object.object.message.text.lower() in ["демотиватор", "demotivator"])
+                return FilterResult(event.object.object.message.text.lower()[:11] in ["демотиватор", "demotivator"])
 
         def __init__(self):
             for member in dir(self):

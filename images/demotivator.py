@@ -1,5 +1,5 @@
 import os
-from io import BytesIO
+import tempfile
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -26,6 +26,6 @@ class Demotivator:
         draw.text(((655 - w1) / 2, 450), text1, fill="white", font=self.font1)
         w2, h2 = draw.textsize(text2, font=self.font2)
         draw.text(((655 - w2) / 2, 525), text2, fill="white", font=self.font2)
-        buf = BytesIO()
-        result.save(buf, format="png")
-        return buf
+        fPath = os.path.join(tempfile.gettempdir(), "demotivator.png")
+        result.save(fPath)
+        return fPath

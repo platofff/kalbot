@@ -37,14 +37,16 @@ class Demotivator:
                 maxLen = 34
             result = []
             r = 0
-            label = label.replace("\n", " ").split(" ")
+            label = label.split(" ")
             i = 0
             while i in range(len(label)):
                 result.append([])
                 while True:
                     result[r].append(label[i])
                     i += 1
-                    if i == len(label):
+                    if '\n' in label[i]:
+                        break
+                    elif i == len(label):
                         break
                     elif len(''.join(result[r] + [label[i]])) >= maxLen:
                         break
@@ -61,9 +63,9 @@ class Demotivator:
 
         blackNum = 0
         if h1 > 143:
-            blackNum += ceil((h1 - 143) / 100) + 1
+            blackNum += ceil(h1 / 100)
         if h2 > 143:
-            blackNum += ceil((h2 - 143) / 100)
+            blackNum += ceil(h2 / 100)
         result = addBlack(blackNum, result)
         del blackNum
 

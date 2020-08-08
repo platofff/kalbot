@@ -110,7 +110,6 @@ class Bot:
                         msg[1],
                         msg[3]
                     )
-                    await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 except IndexError or AttributeError:
                     imgSearch = ImgSearch()
                     query = f"kali {event.object.object.message.text[4:]}"
@@ -124,7 +123,7 @@ class Bot:
                         msg[1],
                         msg[3]
                     )
-                    await ApiMethods.sendImage(event.object.object.message.from_id, [d])
+                await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
 
     class _TextFilters:
         filters = []

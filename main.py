@@ -112,7 +112,7 @@ class Bot:
                     )
                 except IndexError or AttributeError:
                     imgSearch = ImgSearch()
-                    query = f"kali {msg[1]}"
+                    query = msg[1]
                     links = imgSearch.fetch(query)
                     if links:
                         link = links[randint(0, len(links) - 1)]

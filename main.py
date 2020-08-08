@@ -50,9 +50,11 @@ class Bot:
         class Help:
             @staticmethod
             async def run(event: BotEvent):
-                return """Команды:
-кал <текст> - Поиск kала. Ваш персональный kал при вызове без текста.
-оптимизация - Сгенерировать скрипт оптимизации kaл linux"""
+                return '''Команды:
+                кал текст - Поиск kала. Ваш персональный kал при вызове без текста.
+                оптимизация - Сгенерировать скрипт оптимизации kaл linux
+                демотиватор "текст сверху" "текст снизу" - генерация демотиватора с приложенной картинкой.
+                При вызове без картинки используется уникальная картинка из команды "кал"'''
 
         class Kal:
             @staticmethod
@@ -67,7 +69,7 @@ class Bot:
                     link = [links[randint(0, len(links) - 1)]]
                     await ApiMethods.sendImage(event.object.object.message.from_id, link)
                 else:
-                    return "kaлов не найдено((0("
+                    return "kaлов не найдено((9("
 
         class Optimisation:
             @staticmethod
@@ -98,15 +100,30 @@ class Bot:
         class Demotivator:
             @staticmethod
             async def run(event: BotEvent):
+                msg = event.object.object.message.text.split('"')
+                if len(msg) != 5:
+                    return '''Использование:
+                    демотиватор "текст сверху" "текст снизу"'''
                 try:
                     d = demotivator.create(
                         event.object.object.message.attachments[0].photo.sizes[-1].url,
-                        "test 1",
-                        "test 2"
+                        msg[1],
+                        msg[3]
                     )
-                    await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 except IndexError or AttributeError:
-                    return "Прикрепи картинку, дурачок)0))"
+                    imgSearch = ImgSearch()
+                    query = f"kali {event.object.object.message.text[4:]}"
+                    links = imgSearch.fetch(query)
+                    if links:
+                        link = [links[randint(0, len(links) - 1)]]
+                    else:
+                        return "kалов не найдено((9("
+                    d = demotivator.create(
+                        link,
+                        msg[1],
+                        msg[3]
+                    )
+                await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
 
     class _TextFilters:
         filters = []

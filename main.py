@@ -27,11 +27,13 @@ from vkwave.longpoll import BotLongpollData, BotLongpoll
 from vkwave.types.bot_events import BotEventType
 
 from images.searchimages import ImgSearch
+from images.demotivator import Demotivator
 
 logging.basicConfig(level=logging.DEBUG)
 botToken: Token
 gid: int
 ApiMethods: object
+demotivator: Demotivator
 
 if not (os.environ['VK_BOT_TOKEN'] and os.environ['VK_BOT_GID']):
     with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vkapi.yaml')) as c:
@@ -96,7 +98,15 @@ class Bot:
         class Demotivator:
             @staticmethod
             async def run(event: BotEvent):
-                return f"{dir(event.object.object.message.attachments[0].photo.sizes[-1].url)}"
+                try:
+                    d = demotivator.create(
+                        event.object.object.message.attachments[0].photo.sizes[-1].url,
+                        "test 1",
+                        "test 2"
+                    )
+                    await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
+                except IndexError or AttributeError:
+                    return "Прикрепи картинку, дурачок)0))"
 
     class _TextFilters:
         filters = []
@@ -147,7 +157,7 @@ class Bot:
 
 
 async def main():
-    global ApiMethods
+    global ApiMethods, demotivator
     client = AIOHTTPClient()
     token = BotSyncSingleToken(botToken)
     api_session = API(token, client)
@@ -158,6 +168,7 @@ async def main():
     dp = Dispatcher(api_session, token_storage)
     lp_extension = BotLongpollExtension(dp, longpoll)
     uploader = PhotoUploader(api_session.get_context())
+    demotivator = Demotivator()
 
     class ApiMethods:
         @staticmethod
@@ -165,6 +176,16 @@ async def main():
             attachment = await uploader.get_attachments_from_links(
                 peer_id=userId,
                 links=links
+            )
+            await api_session.get_context().messages.send(
+                user_id=userId, attachment=attachment, random_id=0
+            )
+
+        @staticmethod
+        async def sendImageFile(userId, file):
+            attachment = await uploader.get_attachments_from_paths(
+                peer_id=userId,
+                file_paths=[file]
             )
             await api_session.get_context().messages.send(
                 user_id=userId, attachment=attachment, random_id=0

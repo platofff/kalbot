@@ -16,7 +16,7 @@ class ImgSearch:
             try:
                 r = requests.get(server, params=
                     {"q": query,
-                    "categories": "images",
+                    "categories": "duckduckgo,images",
                     "format": "json"
                 })
                 print(r.text)

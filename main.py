@@ -54,7 +54,7 @@ class Bot:
                 кал текст - Поиск kала. Ваш персональный kал при вызове без текста.
                 оптимизация - Сгенерировать скрипт оптимизации kaл linux
                 демотиватор "текст сверху" "текст снизу" - генерация демотиватора с приложенной картинкой.
-                При вызове без картинки используется уникальная картинка из команды "кал"'''
+                При вызове без картинки используется картинка по запросу, равному тексту сверху'''
 
         class Kal:
             @staticmethod
@@ -112,7 +112,7 @@ class Bot:
                     )
                 except IndexError or AttributeError:
                     imgSearch = ImgSearch()
-                    query = f"kali {event.object.object.message.text[4:]}"
+                    query = f"kali {msg[1]}"
                     links = imgSearch.fetch(query)
                     if links:
                         link = links[randint(0, len(links) - 1)]

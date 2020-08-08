@@ -27,5 +27,5 @@ class Demotivator:
         w2, h2 = draw.textsize(text2, font=self.font2)
         draw.text(((655 - w2) / 2, 525), text2, fill="white", font=self.font2)
         buf = BytesIO()
-        result.save(buf)
+        result.save(buf, format="png")
         return buf

@@ -96,7 +96,7 @@ class Bot:
         class Demotivator:
             @staticmethod
             async def run(event: BotEvent):
-                return f"{dir(event.object.object.message.attachments[0].photo)}"
+                return f"{dir(event.object.object.message.attachments[0].photo.sizes[-1].url)}"
 
     class _TextFilters:
         filters = []

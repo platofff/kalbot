@@ -62,7 +62,7 @@ class Demotivator:
         w2, h2 = draw.textsize(text2, font=self.font2)
 
         blackNum = 0
-        if h1 + h2 > 225:
+        if h1 + h2 > 185:
             blackNum += ceil((h1 + h2 / 100) - 225)
         result = addBlack(blackNum, result)
         del blackNum

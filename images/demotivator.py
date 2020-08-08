@@ -44,7 +44,7 @@ class Demotivator:
                 while True:
                     result[r].append(label[i])
                     i += 1
-                    if '\n' in label[i]:
+                    if '\n' in label[i-1]:
                         break
                     elif i == len(label):
                         break

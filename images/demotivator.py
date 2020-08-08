@@ -37,7 +37,7 @@ class Demotivator:
                 maxLen = 34
             result = []
             r = 0
-            label = label.split(" ")
+            label = label.replace("\n", " ").split(" ")
             i = 0
             while i in range(len(label)):
                 result.append([])

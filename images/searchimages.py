@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ImgSearch:
-    def search(self, keywords):
+    def fetch(self, keywords):
         result = []
 
         def getImages(objs):

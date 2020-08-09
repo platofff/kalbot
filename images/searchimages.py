@@ -16,7 +16,6 @@ class ImgSearch:
 
     @cachedmethod(operator.attrgetter('cache'))
     def fetch(self, keywords):
-        logger.debug(f"Cache: {self.cache}")
         result = []
 
         def getImages(objs):

@@ -1,20 +1,22 @@
 import json
 import logging
+import operator
 import re
 import time
 
 import requests
-from cachetools import cached, TTLCache
+from cachetools import TTLCache, cachedmethod
 
 logger = logging.getLogger(__name__)
 
-cache = TTLCache(ttl=600, maxsize=65536)
-
 
 class ImgSearch:
-    @cached(cache=cache)
+    def __init__(self):
+        self.cache = TTLCache(ttl=600, maxsize=65536)
+
+    @cachedmethod(operator.attrgetter('cache'))
     def fetch(self, keywords):
-        logger.debug(f"Cache: {cache}")
+        logger.debug(f"Cache: {self.cache}")
         result = []
 
         def getImages(objs):

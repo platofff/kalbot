@@ -7,6 +7,7 @@ from string import ascii_letters as ASCII_LETTERS
 from typing import Callable, Awaitable, Any
 
 import yaml
+from PIL import UnidentifiedImageError
 from vkwave.api import BotSyncSingleToken, Token, API
 from vkwave.bots import (
     TokenStorage,
@@ -26,8 +27,8 @@ from vkwave.client import AIOHTTPClient
 from vkwave.longpoll import BotLongpollData, BotLongpoll
 from vkwave.types.bot_events import BotEventType
 
-from images.searchimages import ImgSearch
 from images.demotivator import Demotivator
+from images.searchimages import ImgSearch
 
 logging.basicConfig(level=logging.DEBUG)
 botToken: Token
@@ -120,11 +121,18 @@ class Bot:
                         links = imgSearch.fetch("kernel panic")
                         notFound = True
                     link = links[randint(0, len(links) - 1)]
-                    d = demotivator.create(
-                        link,
-                        msg[0],
-                        msg[1]
-                    )
+                    while True:
+                        try:
+                            d = demotivator.create(
+                                link,
+                                msg[0],
+                                msg[1]
+                            )
+                            break
+                        except UnidentifiedImageError:
+                            links.pop(links.index(link))
+                            link = links[randint(0, len(links) - 1)]
+                            continue
                 await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 if notFound:
                     return "kалов не найдено((9("

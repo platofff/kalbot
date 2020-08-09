@@ -30,8 +30,11 @@ from vkwave.types.bot_events import BotEventType
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
 
-if os.environ['DEBUG'] in ["1", "true"]:
-    logging.basicConfig(level=logging.DEBUG)
+try:
+    if os.environ['DEBUG'] in ["1", "true"]:
+        logging.basicConfig(level=logging.DEBUG)
+except KeyError:
+    pass
 botToken: Token
 gid: int
 ApiMethods: object

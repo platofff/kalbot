@@ -109,12 +109,12 @@ class Bot:
                 try:
                     d = demotivator.create(
                         event.object.object.message.attachments[0].photo.sizes[-1].url,
-                        msg[1],
-                        msg[3]
+                        msg[0],
+                        msg[1]
                     )
                 except IndexError or AttributeError:
                     imgSearch = ImgSearch()
-                    query = msg[1]
+                    query = msg[0]
                     links = imgSearch.fetch(query)
                     if not links:
                         links = imgSearch.fetch("kernel panic")
@@ -122,8 +122,8 @@ class Bot:
                     link = links[randint(0, len(links) - 1)]
                     d = demotivator.create(
                         link,
-                        msg[1],
-                        msg[3]
+                        msg[0],
+                        msg[1]
                     )
                 await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 if notFound:

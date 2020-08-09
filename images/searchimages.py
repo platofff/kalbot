@@ -8,10 +8,13 @@ from cachetools import cached, TTLCache
 
 logger = logging.getLogger(__name__)
 
+cache = TTLCache(ttl=600, maxsize=65536)
+
 
 class ImgSearch:
-    @cached(cache=TTLCache(ttl=600, maxsize=65536))
+    @cached(cache=cache)
     def fetch(self, keywords):
+        logger.debug(f"Cache: {cache}")
         result = []
 
         def getImages(objs):

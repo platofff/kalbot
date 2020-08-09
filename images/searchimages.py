@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class ImgSearch:
-    @cached(cache=TTLCache(ttl=600))
+    @cached(cache=TTLCache(ttl=600, maxsize=65536))
     def fetch(self, keywords):
         result = []
 

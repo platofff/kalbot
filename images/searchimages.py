@@ -1,13 +1,16 @@
-import requests
-import re
 import json
-import time
 import logging
+import re
+import time
+
+import requests
+from cachetools import cached, TTLCache
 
 logger = logging.getLogger(__name__)
 
 
 class ImgSearch:
+    @cached(cache=TTLCache(maxsize=1024, ttl=600))
     def fetch(self, keywords):
         result = []
 

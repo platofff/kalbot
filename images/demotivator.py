@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 from io import BytesIO
 from math import ceil
@@ -6,15 +7,13 @@ from math import ceil
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
 
 class Demotivator:
     pattern: Image
     background: Image
 
     def __init__(self):
-        self.pattern = Image.open('demotivator.jpg')
+        self.pattern = Image.open(os.path.join(sys.path[0], 'images', 'demotivator.jpg'))
         self.font1 = ImageFont.truetype(font="DejaVuSerifCondensed.ttf", size=48, encoding="unic")
         self.font2 = ImageFont.truetype(font="DejaVuSans.ttf", size=28, encoding="unic")
 
@@ -35,24 +34,19 @@ class Demotivator:
                 maxLen = 23
             else:
                 maxLen = 34
-            result = []
-            r = 0
-            label = label.split(" ")
-            i = 0
-            while i in range(len(label)):
-                result.append([])
-                while True:
-                    result[r].append(label[i])
-                    i += 1
-                    if '\n' in label[i-1]:
-                        break
-                    elif i == len(label):
-                        break
-                    elif len(''.join(result[r] + [label[i]])) >= maxLen:
-                        break
-                result[r] = ' '.join(result[r])
-                r += 1
-            return "\n".join(result)
+            label = [x.split(" ") for x in label.split('\n')]
+            s = 0
+            while s < len(label):
+                while len(label[s]) > 1 and len(' '.join(label[s])) >= maxLen:
+                    try:
+                        label[s + 1] = [label[s][-1]] + label[s + 1]
+                    except IndexError:
+                        label.append([])
+                        label[s + 1] = [label[s][-1]] + label[s + 1]
+                    label[s].pop(-1)
+                label[s] = ' '.join(label[s])
+                s += 1
+            return "\n".join(label)
 
         text1 = formatLabel(text1, True)
         text2 = formatLabel(text2, False)

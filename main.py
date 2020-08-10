@@ -2,9 +2,13 @@ import asyncio
 import base64
 import logging
 import os
+import sys
+
+from math import floor
 from random import randint, choice
 from string import ascii_letters as ASCII_LETTERS
 from typing import Callable, Awaitable, Any
+from datetime import datetime
 
 import yaml
 from PIL import UnidentifiedImageError
@@ -18,7 +22,7 @@ from vkwave.bots import (
     EventTypeFilter,
     BotEvent,
     BaseEvent,
-    PhotoUploader,
+    PhotoUploader, WallPhotoUploader,
 )
 from vkwave.bots.core import BaseFilter
 from vkwave.bots.core.dispatching.filters.base import FilterResult
@@ -37,17 +41,24 @@ except KeyError:
     pass
 botToken: Token
 gid: int
+admins: list
 ApiMethods: object
 demotivator: Demotivator
 
-if not (os.environ['VK_BOT_TOKEN'] and os.environ['VK_BOT_GID']):
-    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vkapi.yaml')) as c:
+os.chdir(sys.path[0])
+
+if not ('VK_BOT_TOKEN' in os.environ):
+    with open('vkapi.yaml') as c:
         config = yaml.safe_load(c)
         botToken = Token(config["bot_token"])
-        gid = int(config["group_id"])
+        gid = config["group_id"]
+        admins = config["admin_ids"]
+        userToken = config["user_token"]
 else:
     botToken = Token(os.environ['VK_BOT_TOKEN'])
     gid = int(os.environ['VK_BOT_GID'])
+    admins = [int(x) for x in os.environ["VK_BOT_ADMINS"].split(",")]
+    userToken = os.environ['VK_API_TOKEN']
 
 
 class Bot:
@@ -91,6 +102,7 @@ class Bot:
                         rand1, rand2 = randString(len1), randString(len2)
                         pos = len1 + 1
                         return f"`echo {rand1}{s}{rand2} | cut -b {pos}-{pos}`"
+
                     result = "$("
                     for sym in string:
                         mode = randint(0, 1)
@@ -141,6 +153,27 @@ class Bot:
                 if notFound:
                     return "kалов не найдено((9("
 
+        class Shitposting:
+            @staticmethod
+            async def run(event: BotEvent):
+                imgSearch = ImgSearch()
+                query = "kali linux"
+                links = imgSearch.fetch(query)
+                link = links[randint(0, len(links) - 1)]
+                while True:
+                    try:
+                        d = demotivator.create(
+                            link,
+                            "kali linux",
+                            "test"
+                        )
+                        break
+                    except UnidentifiedImageError:
+                        links.pop(links.index(link))
+                        link = links[randint(0, len(links) - 1)]
+                        continue
+                await ApiMethods.wallPostPhoto([d], floor(datetime.now().timestamp()) + 86400)
+
     class _TextFilters:
         filters = []
 
@@ -160,6 +193,11 @@ class Bot:
         class Demotivator(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower()[:11] in ["демотиватор", "demotivator"])
+
+        class Shitposting(BaseFilter):
+            async def check(self, event: BotEvent) -> FilterResult:
+                return FilterResult(event.object.object.message.text.lower() == "шитпостинг"
+                                    and event.object.object.message.from_id in admins)
 
         def __init__(self):
             for member in dir(self):
@@ -193,6 +231,7 @@ async def main():
     global ApiMethods, demotivator
     client = AIOHTTPClient()
     token = BotSyncSingleToken(botToken)
+    user_api = API(userToken, client)
     api_session = API(token, client)
     api = api_session.get_context()
     lp_data = BotLongpollData(gid)
@@ -224,6 +263,15 @@ async def main():
                 user_id=userId, attachment=attachment, random_id=0
             )
 
+        @staticmethod
+        async def wallPostPhoto(photos, date, message=None):
+            photo = await WallPhotoUploader(user_api.get_context()).get_attachments_from_paths(
+                group_id=-gid,
+                file_paths=photos,
+            )
+            await user_api.get_context().wall.post(from_group=1, owner_id=-gid, message=message,
+                                                      attachments=photo, publish_date=date)
+
     router = DefaultRouter()
     bot = Bot()
 
@@ -240,4 +288,3 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(main())
     loop.run_forever()
-

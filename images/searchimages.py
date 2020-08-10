@@ -42,7 +42,7 @@ class ImgSearch:
 
         if not searchObj:
             logger.error("Token Parsing Failed !")
-            return -1
+            return []
 
         logger.debug("Obtained Token")
 

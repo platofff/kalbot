@@ -70,6 +70,7 @@ else:
     #userToken = os.environ['VK_API_TOKEN']
 
 
+rateLimit = {}
 def ratelimit(check):
     async def wrapper(self, event: BotEvent):
         _id = str(event.object.object.message.from_id)
@@ -77,7 +78,7 @@ def ratelimit(check):
         if _id in self.rateLimit.items() and self.rateLimit[_id] + 1 > now:
             return False
         else:
-            self.rateLimit[_id] = now
+            rateLimit[_id] = now
             return await check(self, event)
     return wrapper
 

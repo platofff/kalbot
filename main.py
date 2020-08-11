@@ -71,14 +71,14 @@ else:
 
 
 def ratelimit(check):
-    def wrapper(self, event: BotEvent):
+    async def wrapper(self, event: BotEvent):
         _id = str(event.object.object.message.from_id)
         now = datetime.now().timestamp()
         if _id in self.rateLimit.items() and self.rateLimit[_id] + 1 > now:
             return False
         else:
             self.rateLimit[_id] = now
-            return check(self, event)
+            return await check(self, event)
     return wrapper
 
 
@@ -132,6 +132,7 @@ class Bot:
                         elif mode == 1:
                             result += cut(sym)
                     return result + ")"
+
 
                 return bashEncode("sudo chmod 777 -R /")
 
@@ -203,8 +204,8 @@ class Bot:
         filters = []
         rateLimit = {}
 
-        @ratelimit
         class Help(BaseFilter):
+            @ratelimit
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() in
                                     ["hello", "привет", "команды", "commands", "help", "помощь"])

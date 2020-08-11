@@ -62,12 +62,12 @@ if not ('VK_BOT_TOKEN' in os.environ):
         botToken = Token(config["bot_token"])
         gid = config["group_id"]
         admins = config["admin_ids"]
-        userToken = config["user_token"]
+        #userToken = config["user_token"]
 else:
     botToken = Token(os.environ['VK_BOT_TOKEN'])
     gid = int(os.environ['VK_BOT_GID'])
     admins = [int(x) for x in os.environ["VK_BOT_ADMINS"].split(",")]
-    userToken = os.environ['VK_API_TOKEN']
+    #userToken = os.environ['VK_API_TOKEN']
 
 
 class Bot:
@@ -164,7 +164,7 @@ class Bot:
                 await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 if notFound:
                     return "kалов не найдено((9("
-
+"""
         class Shitposting:
             @staticmethod
             async def run(event=None):
@@ -185,7 +185,7 @@ class Bot:
                         continue
                 await ApiMethods.wallPostPhoto([d], floor(datetime.now().timestamp()) + 86400)
                 return f"Скинул в отложку кал по запросу {query}"
-
+"""
     class _TextFilters:
         filters = []
 
@@ -205,12 +205,12 @@ class Bot:
         class Demotivator(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower()[:11] in ["демотиватор", "demotivator"])
-
+"""
         class Shitposting(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() == "шитпостинг"
                                     and event.object.object.message.from_id in admins)
-
+"""
         def __init__(self):
             for member in dir(self):
                 if member[:1].isupper():
@@ -285,7 +285,7 @@ async def main():
     global ApiMethods, demotivator, imgSearch, vasyaCache
     client = AIOHTTPClient()
     token = BotSyncSingleToken(botToken)
-    user_api = API(userToken, client)
+    #user_api = API(userToken, client)
     api_session = API(token, client)
     api = api_session.get_context()
     lp_data = BotLongpollData(gid)
@@ -320,7 +320,7 @@ async def main():
             await api_session.get_context().messages.send(
                 user_id=userId, attachment=attachment, random_id=0
             )
-
+        """
         @staticmethod
         async def wallPostPhoto(photos, date, message=None):
             photo = await WallPhotoUploader(user_api.get_context()).get_attachments_from_paths(
@@ -329,7 +329,7 @@ async def main():
             )
             await user_api.get_context().wall.post(from_group=1, owner_id=-gid, message=message,
                                                       attachments=photo, publish_date=date)
-
+        """
     router = DefaultRouter()
     bot = Bot()
 

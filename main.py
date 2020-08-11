@@ -164,7 +164,7 @@ class Bot:
                 await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 if notFound:
                     return "kалов не найдено((9("
-"""
+        """
         class Shitposting:
             @staticmethod
             async def run(event=None):
@@ -185,7 +185,7 @@ class Bot:
                         continue
                 await ApiMethods.wallPostPhoto([d], floor(datetime.now().timestamp()) + 86400)
                 return f"Скинул в отложку кал по запросу {query}"
-"""
+        """
     class _TextFilters:
         filters = []
 
@@ -205,12 +205,12 @@ class Bot:
         class Demotivator(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower()[:11] in ["демотиватор", "demotivator"])
-"""
+        """
         class Shitposting(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() == "шитпостинг"
                                     and event.object.object.message.from_id in admins)
-"""
+        """
         def __init__(self):
             for member in dir(self):
                 if member[:1].isupper():

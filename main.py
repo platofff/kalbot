@@ -70,6 +70,18 @@ else:
     #userToken = os.environ['VK_API_TOKEN']
 
 
+def ratelimit(check):
+    def wrapper(self, event: BotEvent):
+        _id = str(event.object.object.message.from_id)
+        now = datetime.now().timestamp()
+        if _id in self.rateLimit.items() and self.rateLimit[_id] + 1 > now:
+            return False
+        else:
+            self.rateLimit[_id] = now
+            return check(self, event)
+    return wrapper
+
+
 class Bot:
     class _Methods:
         class Help:
@@ -189,7 +201,9 @@ class Bot:
         """
     class _TextFilters:
         filters = []
+        rateLimit = {}
 
+        @ratelimit
         class Help(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() in

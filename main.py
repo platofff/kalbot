@@ -44,6 +44,8 @@ try:
 except KeyError:
     pass
 
+os.chdir(sys.path[0])
+
 with open("vasya.json") as v:
     vasya = json.load(v)
 
@@ -53,8 +55,6 @@ admins: list
 ApiMethods: object
 demotivator: Demotivator
 imgSearch: ImgSearch
-
-os.chdir(sys.path[0])
 
 if not ('VK_BOT_TOKEN' in os.environ):
     with open('vkapi.yaml') as c:

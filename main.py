@@ -75,7 +75,7 @@ def ratelimit(check):
     async def wrapper(self, event: BotEvent):
         _id = str(event.object.object.message.from_id)
         now = datetime.now().timestamp()
-        if _id in self.rateLimit.items() and self.rateLimit[_id] + 1 > now:
+        if _id in rateLimit.items() and rateLimit[_id] + 1 > now:
             return False
         else:
             rateLimit[_id] = now

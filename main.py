@@ -1,4 +1,5 @@
 import asyncio
+import atexit
 import base64
 import logging
 import os
@@ -7,10 +8,13 @@ import sys
 from math import floor
 from random import randint, choice
 from string import ascii_letters as ASCII_LETTERS
+from threading import Thread
+from time import sleep
 from typing import Callable, Awaitable, Any
 from datetime import datetime
 
 import yaml
+import json
 from PIL import UnidentifiedImageError
 from vkwave.api import BotSyncSingleToken, Token, API
 from vkwave.bots import (
@@ -39,11 +43,16 @@ try:
         logging.basicConfig(level=logging.DEBUG)
 except KeyError:
     pass
+
+with open("vasya.json") as v:
+    vasya = json.load(v)
+
 botToken: Token
 gid: int
 admins: list
 ApiMethods: object
 demotivator: Demotivator
+imgSearch: ImgSearch
 
 os.chdir(sys.path[0])
 
@@ -75,7 +84,6 @@ class Bot:
         class Kal:
             @staticmethod
             async def run(event: BotEvent):
-                imgSearch = ImgSearch()
                 if len(event.object.object.message.text) < 5:
                     query = f"kali {hex(event.object.object.message.from_id)[-2:]}"
                 else:
@@ -120,9 +128,14 @@ class Bot:
                 notFound = False
                 msg = event.object.object.message.text.split(';')
                 msg[0] = msg[0][12:]
-                if len(msg) != 2:
+                if not msg[0]:
+                    await ApiMethods.sendImageFile(event.object.object.message.from_id, vasyaCache.getDemotivator())
+                    return None
+                elif len(msg) != 2:
                     return '''Использование:
-                    демотиватор текст сверху;текст снизу'''
+                    демотиватор текст сверху;текст снизу
+                    Использование ассоциаций из БД васи машинки:
+                    демотиватор'''
                 try:
                     d = demotivator.create(
                         event.object.object.message.attachments[0].photo.sizes[-1].url,
@@ -130,7 +143,6 @@ class Bot:
                         msg[1]
                     )
                 except IndexError or AttributeError:
-                    imgSearch = ImgSearch()
                     query = msg[0]
                     links = imgSearch.fetch(query)
                     if not links:
@@ -155,8 +167,7 @@ class Bot:
 
         class Shitposting:
             @staticmethod
-            async def run(event: BotEvent):
-                imgSearch = ImgSearch()
+            async def run(event=None):
                 query = "kali linux"
                 links = imgSearch.fetch(query)
                 link = links[randint(0, len(links) - 1)]
@@ -173,6 +184,7 @@ class Bot:
                         link = links[randint(0, len(links) - 1)]
                         continue
                 await ApiMethods.wallPostPhoto([d], floor(datetime.now().timestamp()) + 86400)
+                return f"Скинул в отложку кал по запросу {query}"
 
     class _TextFilters:
         filters = []
@@ -226,9 +238,51 @@ class Bot:
 
         return handlers
 
+    class VasyaCaching(Thread):
+        def __init__(self, demotivator, vasyaDB, imgSearch):
+            Thread.__init__(self)
+            self.running = True
+            self._d = demotivator
+            self._v = vasyaDB
+            self._i = imgSearch
+            self._demCache = []
+
+        def run(self):
+            while self.running:
+                if len(self._demCache) < 10:
+                    self._getDemotivator()
+                sleep(5)
+
+        def _getDemotivator(self):
+            links = []
+            while not links:
+                msg0, msg1 = choice(list(self._v.items()))
+                msg1 = ' '.join(msg1)
+                query = msg0
+                links = self._i.fetch(query)
+            link = links[randint(0, len(links) - 1)]
+            while True:
+                try:
+                    dem = self._d.create(
+                        link,
+                        msg0,
+                        msg1,
+                        f'demotivator{len(self._demCache)}.png'
+                    )
+                    break
+                except:
+                    links.pop(links.index(link))
+                    link = links[randint(0, len(links) - 1)]
+                    continue
+            self._demCache.append(dem)
+
+        def getDemotivator(self):
+            while not self._demCache:
+                sleep(1)
+            return self._demCache.pop(0)
 
 async def main():
-    global ApiMethods, demotivator
+    global ApiMethods, demotivator, imgSearch, vasyaCache
     client = AIOHTTPClient()
     token = BotSyncSingleToken(botToken)
     user_api = API(userToken, client)
@@ -241,6 +295,10 @@ async def main():
     lp_extension = BotLongpollExtension(dp, longpoll)
     uploader = PhotoUploader(api_session.get_context())
     demotivator = Demotivator()
+    imgSearch = ImgSearch()
+    vasyaCache = Bot.VasyaCaching(demotivator, vasya, imgSearch)
+    vasyaCache.start()
+    atexit.register(lambda: setattr(vasyaCache, "running", False))
 
     class ApiMethods:
         @staticmethod

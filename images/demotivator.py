@@ -17,7 +17,7 @@ class Demotivator:
         self.font1 = ImageFont.truetype(font="DejaVuSerifCondensed.ttf", size=48, encoding="unic")
         self.font2 = ImageFont.truetype(font="DejaVuSans.ttf", size=28, encoding="unic")
 
-    def create(self, url, text1, text2):
+    def create(self, url, text1, text2, name="demotivator.png"):
         r = requests.get(url)
         img = Image.open(BytesIO(r.content))
         img = img.resize((542, 358))
@@ -65,6 +65,6 @@ class Demotivator:
         draw.multiline_text(((655 - w1) / 2, 450), text1, fill="white", font=self.font1, align="center")
         draw.multiline_text(((655 - w2) / 2, 470 + h1), text2, fill="white", font=self.font2, align="center")
 
-        fPath = os.path.join(tempfile.gettempdir(), "demotivator.png")
+        fPath = os.path.join(tempfile.gettempdir(), name)
         result.save(fPath)
         return fPath

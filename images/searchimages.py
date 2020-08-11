@@ -13,40 +13,8 @@ logger = logging.getLogger(__name__)
 class ImgSearch:
     def __init__(self):
         self.cache = TTLCache(ttl=600, maxsize=65536)
-
-    @cachedmethod(operator.attrgetter('cache'))
-    def fetch(self, keywords):
-        result = []
-
-        def getImages(objs):
-            images = []
-            for obj in objs:
-                if obj["image"][-4:] in [".gif", ".jpg", ".png"] or obj["image"][-5:] == ".jpeg":
-                    images.append(obj["image"])
-            return images
-
-        url = 'https://duckduckgo.com/'
-        params = {
-            'q': keywords,
-            't': 'ht',
-            'iax': 'images',
-            'ia': 'images'
-        }
-
-        logger.debug("Hitting DuckDuckGo for Token")
-
-        #   First make a request to above URL, and parse out the 'vqd'
-        #   This is a special token, which should be used in the subsequent request
-        res = requests.post(url, data=params)
-        searchObj = re.search(r'vqd=([\d-]+)\&', res.text, re.M | re.I)
-
-        if not searchObj:
-            logger.error("Token Parsing Failed !")
-            return result
-
-        logger.debug("Obtained Token")
-
-        headers = {
+        self.url = 'https://duckduckgo.com/'
+        self.headers = {
             'authority': 'duckduckgo.com',
             'accept': 'application/json, text/javascript, */*; q=0.01',
             'sec-fetch-dest': 'empty',
@@ -58,6 +26,36 @@ class ImgSearch:
             'accept-language': 'en-US,en;q=0.9',
         }
 
+    def _getImages(self, objs):
+        images = []
+        for obj in objs:
+            if obj["image"][-4:] in [".gif", ".jpg", ".png"] or obj["image"][-5:] == ".jpeg":
+                images.append(obj["image"])
+        return images
+
+    @cachedmethod(operator.attrgetter('cache'))
+    def fetch(self, keywords):
+        result = []
+
+        params = {
+            'q': keywords,
+            't': 'ht',
+            'iax': 'images',
+            'ia': 'images'
+        }
+        logger.debug("Hitting DuckDuckGo for Token")
+
+        #   First make a request to above URL, and parse out the 'vqd'
+        #   This is a special token, which should be used in the subsequent request
+        res = requests.post(self.url, data=params)
+        searchObj = re.search(r'vqd=([\d-]+)\&', res.text, re.M | re.I)
+
+        if not searchObj:
+            logger.error("Token Parsing Failed !")
+            return result
+
+        logger.debug("Obtained Token")
+
         params = (
             ('l', 'us-en'),
             ('o', 'json'),
@@ -68,14 +66,14 @@ class ImgSearch:
             ('v7exp', 'a'),
         )
 
-        requestUrl = url + "i.js"
+        requestUrl = self.url + "i.js"
 
         logger.debug("Hitting Url : %s", requestUrl)
 
         while True:
             while True:
                 try:
-                    res = requests.get(requestUrl, headers=headers, params=params)
+                    res = requests.get(requestUrl, headers=self.headers, params=params)
                     data = json.loads(res.text)
                     break
                 except ValueError as e:
@@ -84,10 +82,10 @@ class ImgSearch:
                     continue
 
             logger.debug("Hitting Url Success : %s", requestUrl)
-            result += getImages(data["results"])
+            result += self._getImages(data["results"])
 
             if "next" not in data:
                 logger.debug("No Next Page - Exiting")
                 return result
 
-            requestUrl = url + data["next"]
+            requestUrl = self.url + data["next"]

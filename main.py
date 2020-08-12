@@ -1,21 +1,17 @@
 import asyncio
 import atexit
 import base64
+import json
 import logging
 import os
 import sys
-from asyncio import Event, Future
-
-from math import floor
+from contextlib import suppress
+from datetime import datetime
 from random import randint, choice
 from string import ascii_letters as ASCII_LETTERS
-from threading import Thread
-from time import sleep
 from typing import Callable, Awaitable, Any
-from datetime import datetime
 
 import yaml
-import json
 from PIL import UnidentifiedImageError
 from vkwave.api import BotSyncSingleToken, Token, API
 from vkwave.bots import (
@@ -27,8 +23,7 @@ from vkwave.bots import (
     EventTypeFilter,
     BotEvent,
     BaseEvent,
-    PhotoUploader, WallPhotoUploader,
-)
+    PhotoUploader, )
 from vkwave.bots.core import BaseFilter
 from vkwave.bots.core.dispatching.filters.base import FilterResult
 from vkwave.bots.core.dispatching.handler.callback import BaseCallback
@@ -276,7 +271,7 @@ class Bot:
             self._d = demotivator
             self._v = vasyaDB
             self._i = imgSearch
-            loop.create_task(self._cacheFiller())
+            self._task = asyncio.Task(self._cacheFiller())
 
         async def _cacheFiller(self):
             while self.running:
@@ -314,6 +309,10 @@ class Bot:
                 asyncio.sleep(1)
             return self._demCache.pop(-1)
 
+        def __del__(self):
+            self._task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._task
 
 async def main():
     global ApiMethods, demotivator, imgSearch, vasyaCache

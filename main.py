@@ -9,6 +9,8 @@ from contextlib import suppress
 from datetime import datetime
 from random import randint, choice
 from string import ascii_letters as ASCII_LETTERS
+from threading import Thread
+from time import sleep
 from typing import Callable, Awaitable, Any
 
 import yaml
@@ -72,13 +74,11 @@ def ratelimit(check):
     async def wrapper(self, event: BotEvent):
         _id = str(event.object.object.message.from_id)
         now = datetime.now().timestamp()
-        if _id in rateLimit.keys() and rateLimit[_id] + 2 > now:
-            print(_id, now, rateLimit[_id])
+        if _id in rateLimit.keys() and rateLimit[_id] + 3 > now:
             return False
         else:
             rateLimit[_id] = now
             return await check(self, event)
-
     return wrapper
 
 
@@ -87,7 +87,8 @@ class Bot:
         class Help:
             @staticmethod
             async def run(event: BotEvent):
-                return '''Команды:
+                return '''Внимание! Не срите в бота чаще 3 секунд!
+                Команды:
                 кал текст - Поиск kала. Ваш персональный kал при вызове без текста.
                 оптимизация - Сгенерировать скрипт оптимизации kaл linux
                 демотиватор текст сверху;текст снизу - генерация демотиватора с приложенной картинкой.
@@ -143,7 +144,7 @@ class Bot:
                 msg[0] = msg[0][12:]
                 if not msg[0]:
                     await ApiMethods.sendImageFile(event.object.object.message.from_id,
-                                                   await vasyaCache.getDemotivator())
+                                                   vasyaCache.getDemotivator())
                     return None
                 elif len(msg) != 2:
                     return '''Использование:
@@ -261,27 +262,25 @@ class Bot:
 
         return handlers
 
-    class Vasya():
+    class Vasya(Thread):
         cachesize = 10
-        _tasks = []
         _demCache = []
 
         def __init__(self, demotivator, vasyaDB, imgSearch):
+            Thread.__init__(self)
             self.running = True
             self._d = demotivator
             self._v = vasyaDB
             self._i = imgSearch
-            self._task = asyncio.Task(self._cacheFiller())
 
-        async def _cacheFiller(self):
+        def run(self):
             while self.running:
                 if len(self._demCache) < self.cachesize:
                     for i in range(10 - len(self._demCache)):
-                        self._tasks.append(self._getDemotivator())
-                    await asyncio.wait(self._tasks)
-                await asyncio.sleep(1)
+                        self._getDemotivator()
+                sleep(1)
 
-        async def _getDemotivator(self):
+        def _getDemotivator(self):
             links = []
             while not links:
                 msg0, msg1 = choice(list(self._v.items()))
@@ -304,15 +303,11 @@ class Bot:
                     continue
             self._demCache.append(dem)
 
-        async def getDemotivator(self):
-            if not self._demCache:
-                asyncio.sleep(1)
+        def getDemotivator(self):
+            while not self._demCache:
+                sleep(1)
             return self._demCache.pop(-1)
 
-        def __del__(self):
-            self._task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._task
 
 async def main():
     global ApiMethods, demotivator, imgSearch, vasyaCache
@@ -330,6 +325,7 @@ async def main():
     demotivator = Demotivator()
     imgSearch = ImgSearch()
     vasyaCache = Bot.Vasya(demotivator, vasya, imgSearch)
+    vasyaCache.start()
     atexit.register(lambda: setattr(vasyaCache, "running", False))
 
     class ApiMethods:

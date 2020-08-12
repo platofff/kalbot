@@ -282,8 +282,7 @@ class Bot:
             while self.running:
                 if len(self._demCache) < self.cachesize:
                     for i in range(10 - len(self._demCache)):
-                        self._tasks.append(loop.create_task(self._getDemotivator()))
-                    await asyncio.wait(self._tasks)
+                        await self._getDemotivator()
                 await asyncio.sleep(1)
 
         async def _getDemotivator(self):

@@ -4,6 +4,7 @@ import base64
 import logging
 import os
 import sys
+from asyncio import Event, Future
 
 from math import floor
 from random import randint, choice
@@ -62,24 +63,27 @@ if not ('VK_BOT_TOKEN' in os.environ):
         botToken = Token(config["bot_token"])
         gid = config["group_id"]
         admins = config["admin_ids"]
-        #userToken = config["user_token"]
+        # userToken = config["user_token"]
 else:
     botToken = Token(os.environ['VK_BOT_TOKEN'])
     gid = int(os.environ['VK_BOT_GID'])
     admins = [int(x) for x in os.environ["VK_BOT_ADMINS"].split(",")]
-    #userToken = os.environ['VK_API_TOKEN']
-
+    # userToken = os.environ['VK_API_TOKEN']
 
 rateLimit = {}
+
+
 def ratelimit(check):
     async def wrapper(self, event: BotEvent):
         _id = str(event.object.object.message.from_id)
         now = datetime.now().timestamp()
         if _id in rateLimit.keys() and rateLimit[_id] + 2 > now:
+            print(_id, now, rateLimit[_id])
             return False
         else:
             rateLimit[_id] = now
             return await check(self, event)
+
     return wrapper
 
 
@@ -134,7 +138,6 @@ class Bot:
                             result += cut(sym)
                     return result + ")"
 
-
                 return bashEncode("sudo chmod 777 -R /")
 
         class Demotivator:
@@ -144,7 +147,8 @@ class Bot:
                 msg = event.object.object.message.text.split(';')
                 msg[0] = msg[0][12:]
                 if not msg[0]:
-                    await ApiMethods.sendImageFile(event.object.object.message.from_id, vasyaCache.getDemotivator())
+                    await ApiMethods.sendImageFile(event.object.object.message.from_id,
+                                                   await vasyaCache.getDemotivator())
                     return None
                 elif len(msg) != 2:
                     return '''Использование:
@@ -179,6 +183,7 @@ class Bot:
                 await ApiMethods.sendImageFile(event.object.object.message.from_id, d)
                 if notFound:
                     return "kалов не найдено((9("
+
         """
         class Shitposting:
             @staticmethod
@@ -201,6 +206,7 @@ class Bot:
                 await ApiMethods.wallPostPhoto([d], floor(datetime.now().timestamp()) + 86400)
                 return f"Скинул в отложку кал по запросу {query}"
         """
+
     class _TextFilters:
         filters = []
         rateLimit = {}
@@ -225,12 +231,14 @@ class Bot:
             @ratelimit
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower()[:11] in ["демотиватор", "demotivator"])
+
         """
         class Shitposting(BaseFilter):
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() == "шитпостинг"
                                     and event.object.object.message.from_id in admins)
         """
+
         def __init__(self):
             for member in dir(self):
                 if member[:1].isupper():
@@ -258,22 +266,27 @@ class Bot:
 
         return handlers
 
-    class VasyaCaching(Thread):
+    class Vasya():
+        cachesize = 10
+        _tasks = []
+        _demCache = []
+
         def __init__(self, demotivator, vasyaDB, imgSearch):
-            Thread.__init__(self)
             self.running = True
             self._d = demotivator
             self._v = vasyaDB
             self._i = imgSearch
-            self._demCache = []
+            loop.create_task(self._cacheFiller())
 
-        def run(self):
+        async def _cacheFiller(self):
             while self.running:
-                if len(self._demCache) < 10:
-                    self._getDemotivator()
-                sleep(5)
+                if len(self._demCache) < self.cachesize:
+                    for i in range(10 - len(self._demCache)):
+                        self._tasks.append(loop.create_task(self._getDemotivator()))
+                    await asyncio.wait(self._tasks)
+                await asyncio.sleep(1)
 
-        def _getDemotivator(self):
+        async def _getDemotivator(self):
             links = []
             while not links:
                 msg0, msg1 = choice(list(self._v.items()))
@@ -296,16 +309,17 @@ class Bot:
                     continue
             self._demCache.append(dem)
 
-        def getDemotivator(self):
-            while not self._demCache:
-                sleep(1)
-            return self._demCache.pop(0)
+        async def getDemotivator(self):
+            if not self._demCache:
+                asyncio.sleep(1)
+            return self._demCache.pop(-1)
+
 
 async def main():
     global ApiMethods, demotivator, imgSearch, vasyaCache
     client = AIOHTTPClient()
     token = BotSyncSingleToken(botToken)
-    #user_api = API(userToken, client)
+    # user_api = API(userToken, client)
     api_session = API(token, client)
     api = api_session.get_context()
     lp_data = BotLongpollData(gid)
@@ -316,8 +330,7 @@ async def main():
     uploader = PhotoUploader(api_session.get_context())
     demotivator = Demotivator()
     imgSearch = ImgSearch()
-    vasyaCache = Bot.VasyaCaching(demotivator, vasya, imgSearch)
-    vasyaCache.start()
+    vasyaCache = Bot.Vasya(demotivator, vasya, imgSearch)
     atexit.register(lambda: setattr(vasyaCache, "running", False))
 
     class ApiMethods:
@@ -340,6 +353,7 @@ async def main():
             await api_session.get_context().messages.send(
                 user_id=userId, attachment=attachment, random_id=0
             )
+
         """
         @staticmethod
         async def wallPostPhoto(photos, date, message=None):
@@ -350,6 +364,7 @@ async def main():
             await user_api.get_context().wall.post(from_group=1, owner_id=-gid, message=message,
                                                       attachments=photo, publish_date=date)
         """
+
     router = DefaultRouter()
     bot = Bot()
 

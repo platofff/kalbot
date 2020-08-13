@@ -75,6 +75,7 @@ def ratelimit(check):
         _id = str(event.object.object.message.from_id)
         now = datetime.now().timestamp()
         if _id in rateLimit.keys() and rateLimit[_id] + 3 > now:
+            print(rateLimit[_id])
             return False
         else:
             rateLimit[_id] = now
@@ -208,18 +209,15 @@ class Bot:
         rateLimit = {}
 
         class Help(BaseFilter):
-            @ratelimit
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() in
                                     ["hello", "привет", "команды", "commands", "help", "помощь"])
 
         class Kal(BaseFilter):
-            @ratelimit
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower()[:3] in ["кал", "kal"])
 
         class Optimisation(BaseFilter):
-            @ratelimit
             async def check(self, event: BotEvent) -> FilterResult:
                 return FilterResult(event.object.object.message.text.lower() in ["оптимизация", "optimisation"])
 

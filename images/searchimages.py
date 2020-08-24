@@ -51,7 +51,7 @@ class ImgSearch:
         searchObj = re.search(r'vqd=([\d-]+)\&', res.text, re.M | re.I)
 
         if not searchObj:
-            logger.error("Token Parsing Failed !")
+            logger.debug("Token Parsing Failed !")
             return result
 
         logger.debug("Obtained Token")

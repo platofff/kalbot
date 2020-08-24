@@ -65,7 +65,8 @@ class Bot:
             return ['''Внимание! Не срите в бота чаще 3 секунд!
 Команды:
 оптимизация - Сгенерировать скрипт оптимизации kaл linux
-демотиватор текст сверху;текст снизу - генерация демотиватора с приложенной картинкой.
+демотиватор текст сверху
+текст снизу - генерация демотиватора с приложенной картинкой.
 При вызове без картинки используется картинка по запросу, равному тексту сверху
 При вызове без параметров генерируется текст на основе ассоциаций бота васи ( https://vk.com/vasyamashinka )''']
 
@@ -117,17 +118,16 @@ class Bot:
             await super().run(_id, query, attachedPhotos)
             result = []
             notFound = False
-            msg = query.split(';')
+            msg = query.split('\n')
             msg[0] = msg[0][12:]
             if not msg[0]:
                 result.append(self.Image(filepath=self._vasyaCache.getDemotivator()))
                 return result
-            elif len(msg) != 2:
-                result.append('''Использование:
-демотиватор текст сверху;текст снизу
-Использование ассоциаций из БД васи машинки:
-демотиватор''')
-                return result
+            if len(msg) > 1:
+                msg[1] = '\n'.join(msg[1:])
+            else:
+                msg.append('')
+
             d: Demotivator
             try:
                 d = self._demotivator.create(

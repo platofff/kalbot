@@ -108,11 +108,12 @@ class Bot(AbstractBot):
                 if attachment.photo:
                     attachedPhotos.append(attachment.photo.sizes[-1].url)
             msg = event.object.object.message.text.lower()
-            if event.object.object.message.fwd_messages:
-                msg += f' {event.object.object.message.fwd_messages[0].text};'
-                if len(event.object.object.message.fwd_messages) > 1:
-                    for fwd in range(1, len(event.object.object.message.fwd_messages)):
-                        msg += f'{event.object.object.message.fwd_messages[fwd].text}\n'
+            fwd = [x.text for x in event.object.object.message.fwd_messages]
+            if event.object.object.message.reply_message:
+                fwd.append(event.object.object.message.reply_message.text)
+            fwd = '\n'.join(fwd)
+            msg += fwd
+
             r = await self._func(event.object.object.message.from_id,
                                  msg, attachedPhotos)
             if event.object.object.message.from_id != event.object.object.message.peer_id:

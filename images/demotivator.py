@@ -7,14 +7,17 @@ from math import ceil
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+
 class Demotivator:
     pattern: Image
     background: Image
 
     def __init__(self):
         self.pattern = Image.open(os.path.join(sys.path[0], "images", "demotivator.jpg"))
-        self.font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSerifCondensed.ttf"), size=48, encoding="unic")
-        self.font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSans.ttf"), size=28, encoding="unic")
+        self.font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSerifCondensed.ttf"), size=48,
+                                        encoding="unic")
+        self.font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSans.ttf"), size=28,
+                                        encoding="unic")
 
     def create(self, url, text1, text2, name="demotivator.png"):
         r = requests.get(url)

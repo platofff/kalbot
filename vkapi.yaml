@@ -1,4 +1,3 @@
-bot_token: "..." # VK API token
-group_id: "197443814" # VK group ID
-user_token: "..." # VK admin user token
-admin_ids: [1234567, 3455666]
+bot_token: "c2bec2abf137623e07c00e033b7a9aeb2c775f92b0cf1c5f826db823a903faaf7901c6b1cc3d117aaf74f" # VK API token
+group_id: "198122573" # VK group ID
+admin_ids: [560302519]

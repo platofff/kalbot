@@ -18,8 +18,7 @@ try:
 except KeyError:
     pass
 
-#os.chdir(sys.path[0])
-os.chdir('/home/arkadiy/PycharmProjects/kalbot')
+os.chdir(sys.path[0])
 
 async def main():
     if 'vkwave' in backends:

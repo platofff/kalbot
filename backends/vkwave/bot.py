@@ -29,16 +29,12 @@ class Bot(AbstractBot):
     _apiMethods = {}
 
     async def _sendImagesFromURLs(self, peerId: int, urls: list, userId=None) -> None:
-        if not userId:
-            userId = peerId
         attachment = await self._uploader.get_attachments_from_links(links=urls, peer_id=userId)
         await self._apiSession.get_context().messages.send(
             peer_id=peerId, attachment=attachment, random_id=0
         )
 
     async def _sendImagesFromFiles(self, peerId: int, files: list, userId=None) -> None:
-        if not userId:
-            userId = peerId
         attachment = await self._uploader.get_attachments_from_paths(file_paths=files, peer_id=userId)
         await self._apiSession.get_context().messages.send(
             peer_id=peerId, attachment=attachment, random_id=0

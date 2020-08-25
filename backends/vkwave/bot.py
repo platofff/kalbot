@@ -112,9 +112,15 @@ class Bot(AbstractBot):
                 if attachment.photo:
                     attachedPhotos.append(attachment.photo.sizes[-1].url)
             msg = event.object.object.message.text
-            fwd = [x.text for x in event.object.object.message.fwd_messages]
-            if event.object.object.message.reply_message:
-                fwd.append(event.object.object.message.reply_message.text)
+
+            fwd = []
+            for x in [event.object.object.message.reply_message] + event.object.object.message.fwd_messages:
+                if x:
+                    fwd.append(x.text)
+                    for attachment in x.attachments:
+                        if attachment.photo:
+                            attachedPhotos.append(attachment.photo.sizes[-1].url)
+
             fwd = '\n'.join(fwd)
             if userId:
                 msg += fwd

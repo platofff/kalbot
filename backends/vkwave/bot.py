@@ -5,6 +5,7 @@ import yaml
 import logging
 
 from vkwave.api import Token, BotSyncSingleToken, API
+from vkwave.api.methods._error import APIError
 from vkwave.bots import TokenStorage, GroupId, Dispatcher, BotLongpollExtension, PhotoUploader, DefaultRouter, \
     EventTypeFilter, BotEvent, BaseEvent
 from vkwave.bots.core import BaseFilter
@@ -132,12 +133,17 @@ class Bot(AbstractBot):
 
             for msg in r:
                 if type(msg) is self._imageType:
-                    if msg.url:
-                        await self._apiMethods['sendImagesFromURLs'](event.object.object.message.peer_id,
-                                                                     [msg.url], userId)
-                    elif msg.filepath:
-                        await self._apiMethods['sendImagesFromFiles'](event.object.object.message.peer_id,
-                                                                      [msg.filepath], userId)
+                    try:
+                        if msg.url:
+                            await self._apiMethods['sendImagesFromURLs'](event.object.object.message.peer_id,
+                                                                         [msg.url], userId)
+                        elif msg.filepath:
+                            await self._apiMethods['sendImagesFromFiles'](event.object.object.message.peer_id,
+                                                                          [msg.filepath], userId)
+                    except APIError:
+                        await self._apiMethods['sendText'](event.object.object.message.peer_id,
+                                    ["Начни переписку со мной, чтобы оформлять картинки. И желательно подпишись :)"])
+                        break
                 elif type(msg) is str:
                     await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])
 

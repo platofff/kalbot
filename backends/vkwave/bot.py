@@ -5,7 +5,6 @@ import yaml
 import logging
 
 from vkwave.api import Token, BotSyncSingleToken, API
-from vkwave.api.methods._error import APIError
 from vkwave.bots import TokenStorage, GroupId, Dispatcher, BotLongpollExtension, PhotoUploader, DefaultRouter, \
     EventTypeFilter, BotEvent, BaseEvent
 from vkwave.bots.core import BaseFilter
@@ -104,22 +103,26 @@ class Bot(AbstractBot):
 
         async def execute(self, event: BaseEvent) -> None:
             attachedPhotos = []
-            for attachment in event.object.object.message.attachments:
-                if attachment.photo:
-                    attachedPhotos.append(attachment.photo.sizes[-1].url)
-            msg = event.object.object.message.text.lower()
-            fwd = [x.text for x in event.object.object.message.fwd_messages]
-            if event.object.object.message.reply_message:
-                fwd.append(event.object.object.message.reply_message.text)
-            fwd = '\n'.join(fwd)
-            msg += fwd
-
-            r = await self._func(event.object.object.message.from_id,
-                                 msg, attachedPhotos)
             if event.object.object.message.from_id != event.object.object.message.peer_id:
                 userId = event.object.object.message.from_id
             else:
                 userId = None
+
+            for attachment in event.object.object.message.attachments:
+                if attachment.photo:
+                    attachedPhotos.append(attachment.photo.sizes[-1].url)
+            msg = event.object.object.message.text
+            fwd = [x.text for x in event.object.object.message.fwd_messages]
+            if event.object.object.message.reply_message:
+                fwd.append(event.object.object.message.reply_message.text)
+            fwd = '\n'.join(fwd)
+            if userId:
+                msg += fwd
+            else:
+                msg += f' {fwd}'
+
+            r = await self._func(event.object.object.message.from_id,
+                                 msg, attachedPhotos)
 
             for msg in r:
                 if type(msg) is self._imageType:

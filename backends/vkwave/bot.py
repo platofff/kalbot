@@ -2,7 +2,10 @@ from os import environ
 from typing import Callable, Awaitable, Any
 
 import yaml
+import logging
+
 from vkwave.api import Token, BotSyncSingleToken, API
+from vkwave.api.methods._error import APIError
 from vkwave.bots import TokenStorage, GroupId, Dispatcher, BotLongpollExtension, PhotoUploader, DefaultRouter, \
     EventTypeFilter, BotEvent, BaseEvent
 from vkwave.bots.core import BaseFilter
@@ -14,7 +17,6 @@ from sys import path
 
 path.append("...")
 from abstract.bot import Bot as AbstractBot
-import logging
 
 logger = logging.getLogger("VK-Wave")
 

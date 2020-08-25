@@ -3,6 +3,7 @@ import sys
 import tempfile
 from io import BytesIO
 from math import ceil
+from random import choice, randint
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -19,7 +20,9 @@ class Demotivator:
         self.font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSans.ttf"), size=28,
                                         encoding="unic")
 
-    def create(self, url, text1, text2, name="demotivator.png"):
+    def create(self, url, text1, text2, name=None):
+        if not name:
+            name = str(randint(-32767, 32767)) + '.png'
         r = requests.get(url)
         img = Image.open(BytesIO(r.content))
         img = img.resize((542, 358))

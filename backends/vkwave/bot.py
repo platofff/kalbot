@@ -1,4 +1,4 @@
-from os import environ
+from os import environ, remove
 from typing import Callable, Awaitable, Any
 
 import yaml
@@ -41,6 +41,8 @@ class Bot(AbstractBot):
         await self._apiSession.get_context().messages.send(
             peer_id=peerId, attachment=attachment, random_id=0
         )
+        for f in files:
+            remove(f)
 
     async def _sendText(self, userId: int, text: str):
         await self._apiSession.get_context().messages.send(

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+from threading import Thread
 
 from backends.vkwave.bot import Bot as VkwaveBot
 
@@ -20,6 +21,17 @@ except KeyError:
 
 os.chdir(sys.path[0])
 
+
+class LoopThread(Thread):
+    def __init__(self, loop):
+        Thread.__init__(self)
+        self.loop = loop
+
+    def run(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+
+
 async def main():
     if 'vkwave' in backends:
         await VkwaveBot.create()
@@ -27,6 +39,7 @@ async def main():
         raise Exception('Unsupported backend!')
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    loop.run_forever()
+    loop = asyncio.new_event_loop()
+    loopThread = LoopThread(loop)
+    loopThread.start()
+    loop.call_soon_threadsafe(asyncio.ensure_future, main())

@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import textwrap
 from io import BytesIO
 from math import ceil
 from random import randint
@@ -12,6 +13,8 @@ from PIL import Image, ImageDraw, ImageFont
 class Demotivator:
     pattern: Image
     background: Image
+    MAX_LEN_BIG = 25
+    MAX_LEN_SM = 40
 
     def __init__(self):
         self.pattern = Image.open(os.path.join(sys.path[0], "images", "demotivator.jpg"))
@@ -34,27 +37,8 @@ class Demotivator:
             self.background.paste(img, (0, 0))
             return self.background.copy()
 
-        def formatLabel(label, big):
-            if big:
-                maxLen = 19
-            else:
-                maxLen = 30
-            label = [x.split(" ") for x in label.split('\n')]
-            s = 0
-            while s < len(label):
-                while len(label[s]) > 1 and len(' '.join(label[s])) >= maxLen:
-                    try:
-                        label[s + 1] = [label[s][-1]] + label[s + 1]
-                    except IndexError:
-                        label.append([])
-                        label[s + 1] = [label[s][-1]] + label[s + 1]
-                    label[s].pop(-1)
-                label[s] = ' '.join(label[s])
-                s += 1
-            return "\n".join(label)
-
-        text1 = formatLabel(text1, True)
-        text2 = formatLabel(text2, False)
+        text1 = textwrap.fill(text1, self.MAX_LEN_BIG)
+        text2 = textwrap.fill(text2, self.MAX_LEN_SM)
 
         draw = ImageDraw.Draw(result)
         w1, h1 = draw.textsize(text1, font=self.font1)

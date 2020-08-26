@@ -7,6 +7,7 @@ from typing import List, Awaitable, Callable
 from string import ascii_letters as ASCII_LETTERS
 
 from PIL import UnidentifiedImageError
+from requests.exceptions import SSLError
 
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
@@ -118,11 +119,16 @@ class Bot:
             await super().run(_id, query, attachedPhotos)
             result = []
             notFound = False
+            print(query)
             msg = query.split('\n')
             msg[0] = msg[0][12:]
             if not msg[0]:
-                result.append(self.Image(filepath=self._vasyaCache.getDemotivator()))
-                return result
+                if len(msg) == 1:
+                    result.append(self.Image(filepath=self._vasyaCache.getDemotivator()))
+                    return result
+                else:
+                    msg[0] = msg[1]
+                    msg[1] = ''
             if len(msg) > 1:
                 msg[1] = '\n'.join(msg[1:])
             else:
@@ -150,7 +156,7 @@ class Bot:
                             msg[1]
                         )
                         break
-                    except UnidentifiedImageError:
+                    except UnidentifiedImageError or SSLError:
                         links.pop(links.index(link))
                         link = links[randint(0, len(links) - 1)]
                         continue

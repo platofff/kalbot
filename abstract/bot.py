@@ -6,6 +6,7 @@ from random import randint, choice
 from typing import List, Awaitable, Callable
 from string import ascii_letters as ASCII_LETTERS
 
+import requests
 from PIL import UnidentifiedImageError
 from requests.exceptions import SSLError
 
@@ -156,7 +157,7 @@ class Bot:
                             msg[1]
                         )
                         break
-                    except UnidentifiedImageError or SSLError:
+                    except (UnidentifiedImageError, SSLError, requests.exceptions.ConnectionError):
                         links.pop(links.index(link))
                         link = links[randint(0, len(links) - 1)]
                         continue

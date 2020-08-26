@@ -125,7 +125,10 @@ class Bot(AbstractBot):
 
             if fwd:
                 fwd = '\n'.join(fwd)
-                msg = f'{msg}\n{fwd}'
+                if ' ' in msg:
+                    msg = f'{msg}\n{fwd}'
+                else:
+                    msg = f'{msg} {fwd}'
 
             r = await self._func(event.object.object.message.from_id,
                                  msg, attachedPhotos)

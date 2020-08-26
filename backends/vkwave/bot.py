@@ -1,3 +1,4 @@
+import re
 from os import environ, remove
 from typing import Callable, Awaitable, Any
 
@@ -129,6 +130,10 @@ class Bot(AbstractBot):
                     msg = f'{msg}\n{fwd}'
                 else:
                     msg = f'{msg} {fwd}'
+            try:
+                msg = re.sub(r'\[.*\|.*\]', re.findall(r'\|.*\]', msg)[0][1:-1], msg)
+            except IndexError:
+                pass
 
             r = await self._func(event.object.object.message.from_id,
                                  msg, attachedPhotos)

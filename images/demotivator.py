@@ -15,10 +15,10 @@ class Demotivator:
 
     def __init__(self):
         self.pattern = Image.open(os.path.join(sys.path[0], "images", "demotivator.jpg"))
-        self.font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSerifCondensed.ttf"), size=48,
-                                        encoding="unic")
-        self.font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "DejaVuSans.ttf"), size=28,
-                                        encoding="unic")
+        self.font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSerif-TWEmoji.ttf"),
+                                        size=48, encoding="unic")
+        self.font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSans-TWEmoji.ttf"),
+                                        size=28, encoding="unic")
 
     def create(self, url, text1, text2, name=None):
         if not name:
@@ -30,7 +30,7 @@ class Demotivator:
         result.paste(img, (58, 58))
 
         def addBlack(num, img):
-            self.background = Image.new('RGB', (img.size[0], img.size[1] + num * 100), (0, 0, 0))
+            self.background = Image.new('RGB', (img.size[0], img.size[1] + num * 50), (0, 0, 0))
             self.background.paste(img, (0, 0))
             return self.background.copy()
 
@@ -61,8 +61,8 @@ class Demotivator:
         w2, h2 = draw.textsize(text2, font=self.font2)
 
         blackNum = 0
-        if h1 + h2 > 145:
-            blackNum += ceil((h1 + h2 - 145) / 100)
+        if h1 + h2 > 140:
+            blackNum += ceil((h1 + h2 - 140) / 50)
         result = addBlack(blackNum, result)
         del blackNum
 

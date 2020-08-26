@@ -36,9 +36,9 @@ class Demotivator:
 
         def formatLabel(label, big):
             if big:
-                maxLen = 23
+                maxLen = 19
             else:
-                maxLen = 34
+                maxLen = 30
             label = [x.split(" ") for x in label.split('\n')]
             s = 0
             while s < len(label):

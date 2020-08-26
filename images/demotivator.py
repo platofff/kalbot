@@ -37,8 +37,8 @@ class Demotivator:
             self.background.paste(img, (0, 0))
             return self.background.copy()
 
-        text1 = textwrap.fill(text1, self.MAX_LEN_BIG)
-        text2 = textwrap.fill(text2, self.MAX_LEN_SM)
+        text1 = '\n'.join([textwrap.fill(x, self.MAX_LEN_BIG) for x in text1.split('\n')])
+        text2 = '\n'.join([textwrap.fill(x, self.MAX_LEN_SM) for x in text2.split('\n')])
 
         draw = ImageDraw.Draw(result)
         w1, h1 = draw.textsize(text1, font=self.font1)

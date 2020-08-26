@@ -107,8 +107,7 @@ class Bot(AbstractBot):
                 return re.sub(r'\[.*\|', '', match.group(0))[:-1]
 
             def format(self, msg: str) -> str:
-                result = re.sub(r'\[.*?\|.*?\]', self._get, msg)
-                return result
+                return re.sub(r'\[.*?\|.*?\]', self._get, msg)
 
         _tagsFormatter: TagsFormatter
 

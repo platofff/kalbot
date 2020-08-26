@@ -23,12 +23,13 @@ class Bot:
     class _RateLimit:
         _recent = {}
 
-        async def ratecounter(self, _id: int, msgId: int) -> bool:
+        async def ratecounter(self, _id: int) -> bool:
             now = datetime.now().timestamp()
-            if _id in self._recent.keys() and self._recent[_id][0] + 3 > now and msgId != self._recent[_id][1]:
+            if _id in self._recent.keys() and self._recent[_id] > now:
+                self._recent[_id] += 3
                 return False
             else:
-                self._recent[_id] = [now, msgId]
+                self._recent[_id] = now + 3
                 return True
 
     class _Handler:
@@ -64,13 +65,14 @@ class Bot:
 
         async def run(self, _id: int, query: str, attachedPhotos: list) -> list:
             await super().run(_id, query, attachedPhotos)
-            return ['''Внимание! Не срите в бота чаще 3 секунд!
+            return ['''Внимание! Не срите в бота чаще 3 секунд! 1 превышение лимита = +3 секунды к игнору.
 Команды:
 оптимизация - Сгенерировать скрипт оптимизации kaл linux
 демотиватор текст сверху
 текст снизу - генерация демотиватора с приложенной картинкой.
 При вызове без картинки используется картинка по запросу, равному тексту сверху
-При вызове без параметров генерируется текст на основе ассоциаций бота васи ( https://vk.com/vasyamashinka )''']
+При вызове без параметров генерируется текст на основе ассоциаций бота васи ( https://vk.com/vasyamashinka )
+Поддерживается пересылка сообщений с картинкой и/или текстом.''']
 
     class _Optimisation(_Handler):
         @staticmethod

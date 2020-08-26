@@ -98,12 +98,16 @@ class Bot(AbstractBot):
 
     class _Callback:
         def __init__(self, func: Callable[[int, str, list or None], Awaitable[list]], imageType: type,
-                     apiMethods: dict):
+                     apiMethods: dict, rateCounter: Callable[[int], Awaitable[bool]]):
             self._func = func
             self._imageType = imageType
             self._apiMethods = apiMethods
+            self._rateCounter = rateCounter
 
         async def execute(self, event: BaseEvent) -> None:
+            if not await self._rateCounter(event.object.object.message.from_id):
+                logger.debug(f"Oh shit, I'm sorry: {event.object.object.message.from_id} is banned.")
+                return None
             attachedPhotos = []
             msg = event.object.object.message.text
             if event.object.object.message.from_id != event.object.object.message.peer_id:
@@ -156,7 +160,6 @@ class Bot(AbstractBot):
 
     async def _regHandler(self, h: type) -> None:
         eventTypeFilter = EventTypeFilter(BotEventType.MESSAGE_NEW)
-        rateCounter = self._rateLimit.ratecounter
 
         class TextFilter(BaseFilter):
             def __init__(self, h):
@@ -164,9 +167,6 @@ class Bot(AbstractBot):
                 self.h = h
 
             async def check(self, event: BotEvent) -> FilterResult:
-                if not await rateCounter(event.object.object.message.from_id, event.object.object.message.id):
-                    logger.debug(f"Oh shit, I'm sorry: {event.object.object.message.from_id} is banned.")
-                    return FilterResult(False)
                 msg = event.object.object.message.text.lower()
                 if event.object.object.message.from_id != event.object.object.message.peer_id:
                     msg = msg[1:]
@@ -176,7 +176,7 @@ class Bot(AbstractBot):
         handler = self._router.registrar.new()
         handler.filters = [eventTypeFilter, textFilter]
         hI = h(self._rateLimit.ratecounter, self._imgSearch)
-        h = self._Callback(hI.run, self._Handler.Image, self._apiMethods)
+        h = self._Callback(hI.run, self._Handler.Image, self._apiMethods, self._rateLimit.ratecounter)
         handler.callback = h
         ready = handler.ready()
         self._router.registrar.register(ready)

@@ -97,12 +97,28 @@ class Bot(AbstractBot):
         return self
 
     class _Callback:
+        _func: Callable[[int, str, list or None], Awaitable[list]]
+        _imageType: type
+        _apiMethods: dict
+        _rateCounter: Callable[[int], Awaitable[bool]]
+
+        class TagsFormatter:
+            def _get(self, match: re.Match) -> str:
+                return re.sub(r'\[.*\|', '', match.group(0))[:-1]
+
+            def format(self, msg: str) -> str:
+                result = re.sub(r'\[.*?\|.*?\]', self._get, msg)
+                return result
+
+        _tagsFormatter: TagsFormatter
+
         def __init__(self, func: Callable[[int, str, list or None], Awaitable[list]], imageType: type,
                      apiMethods: dict, rateCounter: Callable[[int], Awaitable[bool]]):
             self._func = func
             self._imageType = imageType
             self._apiMethods = apiMethods
             self._rateCounter = rateCounter
+            self._tagsFormatter = self.TagsFormatter()
 
         async def execute(self, event: BaseEvent) -> None:
             if not await self._rateCounter(event.object.object.message.from_id):
@@ -134,10 +150,8 @@ class Bot(AbstractBot):
                     msg = f'{msg}\n{fwd}'
                 else:
                     msg = f'{msg} {fwd}'
-            try:
-                msg = re.sub(r'\[.*\|.*\]', re.findall(r'\|.*\]', msg)[0][1:-1], msg)
-            except IndexError:
-                pass
+
+            msg = self._tagsFormatter.format(msg)
 
             r = await self._func(event.object.object.message.from_id,
                                  msg, attachedPhotos)
@@ -153,7 +167,8 @@ class Bot(AbstractBot):
                                                                           [msg.filepath], userId)
                     except APIError:
                         await self._apiMethods['sendText'](event.object.object.message.peer_id,
-                                    ["Начни переписку со мной, чтобы оформлять картинки. И желательно подпишись :)"])
+                                                           [
+                                                               "Начни переписку со мной, чтобы оформлять картинки. И желательно подпишись :)"])
                         break
                 elif type(msg) is str:
                     await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])

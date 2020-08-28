@@ -80,7 +80,7 @@ class Bot(AbstractBot):
         storage.add_confirmation(GroupId(self._gid), self._confirmationKey)
 
         self._cbExtension = AIOHTTPCallbackExtension(
-            self._dp, path="/callback", host="127.0.0.1", port=self._port, secret=self._secretKey,
+            self._dp, path="/callback", host="0.0.0.0", port=self._port, secret=self._secretKey,
             confirmation_storage=storage
         )
         self._router = DefaultRouter()

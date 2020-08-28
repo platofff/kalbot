@@ -83,6 +83,7 @@ class Bot(AbstractBot):
             self._dp, path="/callback", host="0.0.0.0", port=self._port, secret=self._secretKey,
             confirmation_storage=storage
         )
+        self._uploader = PhotoUploader(self._apiSession.get_context())
         self._router = DefaultRouter()
         self._dp.add_router(self._router)
 

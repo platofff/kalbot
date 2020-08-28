@@ -1,19 +1,18 @@
 import re
 from os import environ, remove
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Any
 
 import yaml
 import logging
 
 from vkwave.api import Token, BotSyncSingleToken, API
 from vkwave.api.methods._error import APIError
-from vkwave.bots import TokenStorage, GroupId, Dispatcher, PhotoUploader, DefaultRouter, \
+from vkwave.bots import TokenStorage, GroupId, Dispatcher, BotLongpollExtension, PhotoUploader, DefaultRouter, \
     EventTypeFilter, BotEvent, BaseEvent
 from vkwave.bots.core import BaseFilter
-from vkwave.bots.core.dispatching.extensions.callback import AIOHTTPCallbackExtension
-from vkwave.bots.core.dispatching.extensions.callback.conf import ConfirmationStorage
 from vkwave.bots.core.dispatching.filters.base import FilterResult
 from vkwave.client import AIOHTTPClient
+from vkwave.longpoll import BotLongpollData, BotLongpoll
 from vkwave.types.bot_events import BotEventType
 from sys import path
 
@@ -25,14 +24,12 @@ logger = logging.getLogger("VK-Wave")
 
 class Bot(AbstractBot):
     _gid: int
+    _admins: list
     _apiSession: API
     _uploader: PhotoUploader
-    _cbExtension: AIOHTTPCallbackExtension
+    _lpExtension: BotLongpollExtension
     _dp: Dispatcher
     _apiMethods = {}
-    _port: int
-    _secretKey: str
-    _confirmationKey: str
 
     async def _sendImagesFromURLs(self, peerId: int, urls: list, userId=None) -> None:
         attachment = await self._uploader.get_attachments_from_links(links=urls, peer_id=userId)
@@ -60,33 +57,24 @@ class Bot(AbstractBot):
                 config = yaml.safe_load(c)
                 botToken = Token(config["bot_token"])
                 self._gid = config["group_id"]
-                self._port = config["port"]
-                self._confirmationKey = config["confirmation_key"]
-                self._secretKey = config["secret_key"]
+                self._admins = config["admin_ids"]
         else:
             botToken = Token(environ['VK_BOT_TOKEN'])
             self._gid = int(environ['VK_BOT_GID'])
-            self._port = int(environ['PORT'])
-            self._confirmationKey = environ['VK_BOT_CONFIRMATION_KEY']
-            self._secretKey = environ['VK_BOT_SECRET_KEY']
+            self._admins = [int(x) for x in environ["VK_BOT_ADMINS"].split(",")]
 
         client = AIOHTTPClient()
         token = BotSyncSingleToken(botToken)
         self._apiSession = API(token, client)
-        tokenStorage = TokenStorage[GroupId]()
-        self._dp = Dispatcher(self._apiSession, tokenStorage)
-
-        storage = ConfirmationStorage()
-        storage.add_confirmation(GroupId(self._gid), self._confirmationKey)
-
-        self._cbExtension = AIOHTTPCallbackExtension(
-            self._dp, path="/callback", host="0.0.0.0", port=self._port, secret=self._secretKey,
-            confirmation_storage=storage
-        )
+        api = self._apiSession.get_context()
+        lpData = BotLongpollData(self._gid)
+        longpoll = BotLongpoll(api, lpData)
+        token_storage = TokenStorage[GroupId]()
+        self._dp = Dispatcher(self._apiSession, token_storage)
+        self._lpExtension = BotLongpollExtension(self._dp, longpoll)
         self._uploader = PhotoUploader(self._apiSession.get_context())
         self._router = DefaultRouter()
         self._dp.add_router(self._router)
-
         for methodName in dir(self):
             if methodName.startswith('_send'):
                 self._apiMethods.update({methodName[1:]: getattr(self, methodName)})
@@ -105,7 +93,7 @@ class Bot(AbstractBot):
         await self._regHandlers()
 
         await self._dp.cache_potential_tokens()
-        await self._cbExtension.start()
+        await self._lpExtension.start()
         return self
 
     class _Callback:

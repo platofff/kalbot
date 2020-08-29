@@ -221,11 +221,11 @@ class Bot:
                     userConfig = {}
             for i in range(len(args)):
                 phrase = self._jsonPattern.copy()
-                phrase['Username'] = fwdNames[i]['firstName']
+                phrase['Username'] = f"{fwdNames[i]['firstName']} {fwdNames[i]['lastName'][:1]}."
                 phrase['Text'] = args[i]
                 phrase['Id'] = i + 1
-                if str(fwdNames[i]['firstName']) in userConfig:
-                    phrase['PoseId'] = userConfig[str(fwdNames[i]['firstName'])]
+                if phrase['Username'] in userConfig:
+                    phrase['PoseId'] = userConfig[phrase['Username']]
                 result.append(phrase)
             result = base64.b64encode(bytes(json.dumps(result), 'ascii')).decode('ascii')
             jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.json')

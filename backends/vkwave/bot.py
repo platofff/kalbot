@@ -178,7 +178,7 @@ class Bot(AbstractBot):
                 fwdNamesIds = [fwdNames[x] for x in range(len(fwdNames))]
 
                 tmp = {}
-                [tmp.update({x.id: {'firstName': x.first_name}}) for x in
+                [tmp.update({x.id: {'firstName': x.first_name, 'lastName': x.last_name}}) for x in
                  (await self._apiMethods['getUsers'](fwdNames)).response]
                 for i in range(len(fwdNamesIds)):
                     fwdNamesIds[i] = tmp[fwdNamesIds[i]]

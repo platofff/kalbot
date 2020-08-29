@@ -1,8 +1,10 @@
+import inspect
 import re
 from inspect import signature
 from os import environ, remove
 from typing import Callable, Awaitable
 
+import pymysql
 import yaml
 import logging
 
@@ -64,8 +66,8 @@ class Bot(AbstractBot):
     async def _getGroups(self, groupIds: list) -> dict:
         return await self._apiSession.get_context().groups.get_by_id(group_ids=groupIds)
 
-    def __init__(self):
-        AbstractBot.__init__(self)
+    def __init__(self, dbConnection: pymysql.connections.Connection):
+        AbstractBot.__init__(self, dbConnection)
         if not ('VK_BOT_TOKEN' in environ):
             with open('vkapi.yaml') as c:
                 config = yaml.safe_load(c)
@@ -83,8 +85,8 @@ class Bot(AbstractBot):
         api = self._apiSession.get_context()
         lpData = BotLongpollData(self._gid)
         longpoll = BotLongpoll(api, lpData)
-        token_storage = TokenStorage[GroupId]()
-        self._dp = Dispatcher(self._apiSession, token_storage)
+        tokenStorage = TokenStorage[GroupId]()
+        self._dp = Dispatcher(self._apiSession, tokenStorage)
         self._lpExtension = BotLongpollExtension(self._dp, longpoll)
         self._photoUploader = PhotoUploader(api)
         self._docUploader = DocUploader(api)
@@ -103,8 +105,8 @@ class Bot(AbstractBot):
                 pass
 
     @classmethod
-    async def create(cls):
-        self = Bot()
+    async def create(cls, dbConnection: pymysql.connections.Connection):
+        self = Bot(dbConnection)
         await self._regHandlers()
 
         await self._dp.cache_potential_tokens()
@@ -169,7 +171,7 @@ class Bot(AbstractBot):
                 msg = f'{msg} {fwd}'
 
             msg = self._tagsFormatter.format(msg)
-            funcArgs = {'_id': event.object.object.message.from_id, 'msg': msg}
+            funcArgs = {}
             if '_id' in self._funcParams:
                 funcArgs.update({'_id': event.object.object.message.from_id})
             if 'msg' in self._funcParams:
@@ -178,36 +180,41 @@ class Bot(AbstractBot):
                 fwdNamesIds = [fwdNames[x] for x in range(len(fwdNames))]
 
                 tmp = {}
-                [tmp.update({x.id: {'firstName': x.first_name, 'lastName': x.last_name}}) for x in
+                [tmp.update({x.id: {'firstName': x.first_name}}) for x in
                  (await self._apiMethods['getUsers'](fwdNames)).response]
                 for i in range(len(fwdNamesIds)):
                     fwdNamesIds[i] = tmp[fwdNamesIds[i]]
                 funcArgs.update({'fwdNames': fwdNamesIds})
             if 'attachedPhotos' in self._funcParams:
                 funcArgs.update({'attachedPhotos': attachedPhotos})
+            if 'attachedDocs' in self._funcParams:
+                funcArgs.update({'attachedDocs': [x.doc.url for x in event.object.object.message.attachments]})
 
-            print(funcArgs)
-            r = await self._func(**funcArgs)
+            try:
+                r = await self._func(**funcArgs)
+            except Exception as e:
+                logger.error(e)
+                r = [('Произошла непредвиденная ошибка. Скорее всего это вызвано неправильным использованием одной из'
+                      'команд. Если это не так, то будь другом, напиши [id560302519|разработчику бота]. Спасибо.')]
 
-            for msg in r:
-                if type(msg) is self._imageType:
-                    try:
+            try:
+                for msg in r:
+                    if type(msg) is self._imageType:
                         if msg.url:
                             await self._apiMethods['sendImagesFromURLs'](event.object.object.message.peer_id,
                                                                          [msg.url], userId)
                         elif msg.filepath:
                             await self._apiMethods['sendImagesFromFiles'](event.object.object.message.peer_id,
                                                                           [msg.filepath], userId)
-                    except APIError:
-                        await self._apiMethods['sendText'](event.object.object.message.peer_id,
-                                                           [("Начни переписку со мной, чтобы оформлять картинки.\
-И желательно подпишись :)")
-                                                            ])
-                        break
-                elif type(msg) is self._docType:
-                    await self._apiMethods['sendDocs'](event.object.object.message.peer_id, [msg.filepath])
-                elif type(msg) is str:
-                    await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])
+                    elif type(msg) is self._docType:
+                        await self._apiMethods['sendDocs'](event.object.object.message.peer_id, [msg.filepath])
+                    elif type(msg) is str:
+                        await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])
+            except APIError:
+                await self._apiMethods['sendText'](event.object.object.message.peer_id,
+                                                   [("Начни переписку со мной, чтобы я мог отправлять тебе вложения."
+                                                     "И желательно подпишись 😏")
+                                                    ])
 
     async def _regHandler(self, h: type) -> None:
         eventTypeFilter = EventTypeFilter(BotEventType.MESSAGE_NEW)
@@ -226,7 +233,13 @@ class Bot(AbstractBot):
         textFilter = TextFilter(h)
         handler = self._router.registrar.new()
         handler.filters = [eventTypeFilter, textFilter]
-        hI = h(self._rateLimit.ratecounter, self._imgSearch)
+        hArgs = {}
+        hParams = signature(h).parameters
+        if 'imgSearch' in hParams:
+            hArgs.update({'imgSearch': self._imgSearch})
+        if 'dbConnection' in hParams:
+            hArgs.update({'dbConnection': self._dbConnection})
+        hI = h(**hArgs)
         h = self._Callback(
             hI.run, self._Handler.Image, self._apiMethods, self._rateLimit.ratecounter, self._Handler.Doc
         )

@@ -9,6 +9,7 @@ pyyaml = "*"
 vkwave = "*"
 requests = "*"
 cachetools = "*"
+PyMySQL = "*"
 
 [dev-packages]
 

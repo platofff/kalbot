@@ -5,6 +5,7 @@ import sys
 from threading import Thread
 
 from backends.vkwave.bot import Bot as VkwaveBot
+from abstract.database import Database
 
 backends = ['vkwave']
 
@@ -34,7 +35,8 @@ class LoopThread(Thread):
 
 async def main():
     if 'vkwave' in backends:
-        await VkwaveBot.create()
+        db = Database()
+        await VkwaveBot.create(db.con)
     else:
         raise Exception('Unsupported backend!')
 

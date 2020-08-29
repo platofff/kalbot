@@ -73,11 +73,9 @@ class Bot(AbstractBot):
                 config = yaml.safe_load(c)
                 botToken = Token(config["bot_token"])
                 self._gid = config["group_id"]
-                self._admins = config["admin_ids"]
         else:
             botToken = Token(environ['VK_BOT_TOKEN'])
             self._gid = int(environ['VK_BOT_GID'])
-            self._admins = [int(x) for x in environ["VK_BOT_ADMINS"].split(",")]
 
         client = AIOHTTPClient()
         token = BotSyncSingleToken(botToken)

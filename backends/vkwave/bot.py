@@ -205,7 +205,7 @@ class Bot(AbstractBot):
                             await self._apiMethods['sendImagesFromFiles'](event.object.object.message.peer_id,
                                                                           [msg.filepath], userId)
                     elif type(msg) is self._docType:
-                        await self._apiMethods['sendDocs'](event.object.object.message.peer_id, [msg.filepath])
+                        await self._apiMethods['sendDocs'](event.object.object.message.from_id, [msg.filepath])
                     elif type(msg) is str:
                         await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])
             except APIError:

@@ -1,11 +1,15 @@
 import atexit
 import base64
+import json
+import re
+import tempfile
 
 from datetime import datetime
+from os.path import join
 from random import randint, choice
-from typing import List, Awaitable, Callable
 from string import ascii_letters as ASCII_LETTERS
 
+import pymysql
 import requests
 from PIL import UnidentifiedImageError
 from requests.exceptions import SSLError
@@ -16,9 +20,10 @@ from images.vasyacache import Vasya
 
 
 class Bot:
-    def __init__(self):
+    def __init__(self, dbConnection: pymysql.connections.Connection):
         self._rateLimit = self._RateLimit()
         self._imgSearch = ImgSearch()
+        self._dbConnection = dbConnection
 
     class _RateLimit:
         _recent = {}
@@ -33,55 +38,73 @@ class Bot:
                 return True
 
     class _Handler:
-        ratecounter: Callable[[int], Awaitable[bool]]
-        imgSearch: ImgSearch
+        _imgSearch: ImgSearch
+        _dbConnection: pymysql.connections.Connection
 
-        def __init__(self, ratecounter: Callable[[int], Awaitable[bool]], imgSearch: ImgSearch):
-            self._ratecounter = ratecounter
-            self._imgSearch = imgSearch
+        def __init__(self, **kwargs):
+            if 'imgSearch' in kwargs.keys():
+                self._imgSearch = kwargs['imgSearch']
+            if 'dbConnection' in kwargs.keys():
+                self._dbConnection = kwargs['dbConnection']
 
-        class Image:
-            def __init__(self, url=None, filepath=None):
-                assert url or filepath, 'URL or filepath for image must be provided.'
+        class Doc:
+            url: str
+            filepath: str
+
+            def __init__(self, url: str = None, filepath: str = None):
+                assert url or filepath, 'URL or filepath for document must be provided.'
                 self.url = url
                 self.filepath = filepath
+
+        class Image(Doc):
+            pass
 
         @staticmethod
         async def filter(query: str) -> bool:
             ...
 
-        async def run(self, _id: int, query: str, attachedPhotos: list) -> list:  # returns a list of strings or images
-            ...
-
-    registredHandlers: List[_Handler]
+        async def parseMsg(self, msg) -> dict:  # returns a parsed dict of command params
+            command = re.split(' |\n', msg)[0]
+            args = msg[len(command) + 1:]
+            return {
+                'command': command,
+                'arguments': args
+            }
 
     async def _regHandler(self, h: type) -> None:
         ...
 
     class _Help(_Handler):
         @staticmethod
-        async def filter(query: str) -> bool:
-            return query in ['help', 'команды', 'помощь', 'commands']
+        async def filter(msg: str) -> bool:
+            return msg in ['help', 'команды', 'помощь', 'commands']
 
-        async def run(self, _id: int, query: str, attachedPhotos: list) -> list:
-            await super().run(_id, query, attachedPhotos)
+        async def run(self) -> list:
             return ['''Внимание! Не срите в бота чаще 3 секунд! 1 превышение лимита = +3 секунды к игнору.
 Команды:
-оптимизация - Сгенерировать скрипт оптимизации kaл linux
+
+objection - генерация спора в стиле Ace Attorney для загрузки в http://objection.lol/maker .
+Требуются пересланные сообщения.
+objectionconf - сохранить конкретных персонажей для имен из прикрепленного файла из http://objection.lol/maker .
+Допустим, ты сделал так, что Вася П. - это Эджворт в своем видео. Используй эту команду чтобы в будущем бот знал, \
+что Вася П. - это Эджворт.
+Более подробно про команды objection можно узнать у нас в паблике.
+
 демотиватор текст сверху
-текст снизу - генерация демотиватора с приложенной картинкой.
+текст снизу
 При вызове без картинки используется картинка по запросу, равному тексту сверху
 При вызове без параметров генерируется текст на основе ассоциаций бота васи ( https://vk.com/vasyamashinka )
-Поддерживается пересылка сообщений с картинкой и/или текстом.''']
+Поддерживается пересылка сообщений с картинкой и/или текстом.
+
+оптимизация - Сгенерировать скрипт оптимизации kaл linux
+''']
 
     class _Optimisation(_Handler):
         @staticmethod
         async def filter(query: str):
             return query.startswith(('оптимизация', 'optimisation'))
 
-        async def run(self, _id: int, query: str, attachedPhotos: list) -> list:
-            await super().run(_id, query, attachedPhotos)
-
+        async def run(self) -> list:
             def bashEncode(string):
                 def randString(size):
                     return ''.join(choice(ASCII_LETTERS) for _ in range(size))
@@ -107,24 +130,23 @@ class Bot:
             return [bashEncode("sudo chmod 0000 -R /")]
 
     class _Demotivator(_Handler):
-        def __init__(self, ratecounter, imgSearch):
-            super().__init__(ratecounter, imgSearch)
+        def __init__(self, imgSearch):
+            super().__init__()
+            self._imgSearch = imgSearch
             self._demotivator = Demotivator()
             self._vasyaCache = Vasya(self._demotivator, self._imgSearch)
             self._vasyaCache.start()
             atexit.register(lambda: setattr(self._vasyaCache, "running", False))
 
         @staticmethod
-        async def filter(query: str):
-            return query.startswith(('демотиватор', 'demotivator'))
+        async def filter(msg: str):
+            return msg.startswith(('демотиватор', 'demotivator'))
 
-        async def run(self, _id: int, query: str, attachedPhotos: list) -> list:
-            await super().run(_id, query, attachedPhotos)
+        async def run(self, _id: int, msg: str, attachedPhotos: list) -> list:
+            args = (await super().parseMsg(msg))['arguments']
             result = []
             notFound = False
-            print(query)
-            msg = query.split('\n')
-            msg[0] = msg[0][12:]
+            msg = re.split(r"\n|!@next!@", args)
             if not msg[0]:
                 if len(msg) == 1:
                     result.append(self.Image(filepath=self._vasyaCache.getDemotivator()))
@@ -137,7 +159,7 @@ class Bot:
             else:
                 msg.append('')
 
-            d: Demotivator
+            d: str
             try:
                 d = self._demotivator.create(
                     attachedPhotos[0],
@@ -166,4 +188,94 @@ class Bot:
             result.append(self.Image(filepath=d))
             if notFound:
                 result.append("kалов не найдено((9(")
+            return result
+
+    class _Objection(_Handler):
+        _jsonPattern: dict
+        _usage: str
+        _dbConnection: pymysql.connections.Connection
+
+        def __init__(self, dbConnection: pymysql.connections.Connection):
+            super().__init__()
+            self._jsonPattern = {
+                "Id": 0,
+                "Text": "",
+                "PoseId": 1,
+                "PoseAnimation": True,
+                "Flipped": False,
+                "BubbleType": "0",
+                "GoNext": False,
+                "MergeNext": False,
+                "DoNotTalk": False,
+                "Username": ""
+            }
+            self._usage = 'Использование: '
+            self._dbCon = dbConnection
+
+        @staticmethod
+        async def filter(msg: str):
+            return msg in ['обжекшон', 'objection']
+
+        async def run(self, _id: int, msg: str, fwdNames: list) -> list:
+            result = []
+            args = (await super().parseMsg(msg))['arguments'].split('!@next!@')
+            if not args[0] or len(fwdNames) != len(args):
+                return [self._usage]
+
+            self._dbCon.ping(reconnect=True)
+            with self._dbCon.cursor() as cur:
+                cur.execute(f'select * from users where userId = {_id}')
+                try:
+                    userConfig = json.loads(cur.fetchone()[1])
+                except TypeError:
+                    userConfig = {}
+            for i in range(len(args)):
+                phrase = self._jsonPattern.copy()
+                phrase['Username'] = f"{fwdNames[i]['firstName']} {fwdNames[i]['lastName'][:1]}."
+                phrase['Text'] = args[i]
+                phrase['Id'] = i + 1
+                if phrase['Username'] in userConfig:
+                    phrase['PoseId'] = userConfig[phrase['Username']]
+                result.append(phrase)
+            result = base64.b64encode(bytes(json.dumps(result), 'ascii')).decode('ascii')
+            jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.json')
+            with open(jsonFile, 'w') as file:
+                file.write(result)
+            result = [self.Doc(filepath=jsonFile), 'Отправил файл тебе в личку.']
+            return result
+
+    class _ObjectionConf(_Handler):
+        def __init__(self, dbConnection: pymysql.connections.Connection):
+            super().__init__()
+            self._dbCon = dbConnection
+
+        @staticmethod
+        async def filter(msg: str):
+            return msg in ['обжекшонконф', 'objectionconf']
+
+        async def run(self, _id: int, attachedDocs: list) -> list:
+            result = []
+            if not attachedDocs:
+                result.append('Команда требует прикрепленного JSON файла.')
+                return result
+
+            newConfig = json.loads(base64.b64decode(requests.get(attachedDocs[0]).content))
+
+            self._dbCon.ping(reconnect=True)
+            with self._dbCon.cursor() as cur:
+                cur.execute(f'select * from users where userId = {_id}')
+                try:
+                    dbConfig = json.loads(cur.fetchone()[1])
+                except TypeError:
+                    dbConfig = {}
+            newDbConfig = {}
+            for c in newConfig:
+                if not c["Username"] in newDbConfig.keys():
+                    newDbConfig.update({c["Username"]: c["PoseId"]})
+                    result.append(f'Персонажу {c["Username"]} назначается поза {c["PoseId"]}')
+            dbConfig.update(newDbConfig)
+            dbConfig = json.dumps(dbConfig)
+            self._dbCon.ping(reconnect=True)
+            with self._dbCon.cursor() as cur:
+                cur.execute(f"replace into `users`(`userId`, `objectionConfig`) values(%s, %s)", (_id, dbConfig))
             return result

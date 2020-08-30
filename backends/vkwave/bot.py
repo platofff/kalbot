@@ -35,13 +35,13 @@ class Bot(AbstractBot):
     _dp: Dispatcher
     _apiMethods = {}
 
-    async def _sendImagesFromURLs(self, peerId: int, urls: list, userId=None) -> None:
+    async def _APIsendImagesFromURLs(self, peerId: int, urls: list, userId=None) -> None:
         attachment = await self._photoUploader.get_attachments_from_links(links=urls, peer_id=userId)
         await self._apiSession.get_context().messages.send(
             peer_id=peerId, attachment=attachment, random_id=0
         )
 
-    async def _sendImagesFromFiles(self, peerId: int, files: list, userId=None) -> None:
+    async def _APIsendImagesFromFiles(self, peerId: int, files: list, userId=None) -> None:
         attachment = await self._photoUploader.get_attachments_from_paths(file_paths=files, peer_id=userId)
         await self._apiSession.get_context().messages.send(
             peer_id=peerId, attachment=attachment, random_id=0
@@ -49,22 +49,25 @@ class Bot(AbstractBot):
         for f in files:
             remove(f)
 
-    async def _sendText(self, userId: int, text: str) -> None:
+    async def _APIsendText(self, userId: int, text: str) -> None:
         await self._apiSession.get_context().messages.send(
             peer_id=userId, message=text, random_id=0
         )
 
-    async def _sendDocs(self, userId: int, files: list) -> None:
+    async def _APIsendDocs(self, userId: int, files: list) -> None:
         attachment = await self._docUploader.get_attachments_from_paths(file_paths=files, peer_id=userId)
         await self._apiSession.get_context().messages.send(
             peer_id=userId, attachment=attachment, random_id=0
         )
 
-    async def _getUsers(self, userIds: list) -> dict:
+    async def _APIgetUsers(self, userIds: list) -> dict:
         return await self._apiSession.get_context().users.get(user_ids=userIds)
 
-    async def _getGroups(self, groupIds: list) -> dict:
+    async def _APIgetGroups(self, groupIds: list) -> dict:
         return await self._apiSession.get_context().groups.get_by_id(group_ids=groupIds)
+
+    async def _APIgetMessagesById(self, messagesIds: list) -> list:
+        return (await self._apiSession.get_context().messages.get_by_id(message_ids=messagesIds)).response.items
 
     def __init__(self, dbConnection: pymysql.connections.Connection):
         AbstractBot.__init__(self, dbConnection)
@@ -91,8 +94,8 @@ class Bot(AbstractBot):
         self._router = DefaultRouter()
         self._dp.add_router(self._router)
         for methodName in dir(self):
-            if methodName.startswith(('_send', '_get')):
-                self._apiMethods.update({methodName[1:]: getattr(self, methodName)})
+            if methodName.startswith('_API'):
+                self._apiMethods.update({methodName[4:]: getattr(self, methodName)})
 
     async def _regHandlers(self):
         for i in dir(self):
@@ -138,33 +141,45 @@ class Bot(AbstractBot):
             self._funcParams = signature(self._func).parameters
 
         async def execute(self, event: BaseEvent) -> None:
-            if not await self._rateCounter(event.object.object.message.from_id):
-                logger.debug(f"Oh shit, I'm sorry: {event.object.object.message.from_id} is banned.")
+            vkMessage = event.object.object.message
+            if vkMessage.is_cropped:
+                if vkMessage.from_id != vkMessage.peer_id:
+                    await self._apiMethods['sendText'](vkMessage.peer_id,
+                                                       ['Твое сообщение слишком большое, попробуй написать мне в ЛС!'])
+                    return None
+                vkMessage = (await self._apiMethods['getMessagesById']([vkMessage.id]))[0]
+            if not await self._rateCounter(vkMessage.from_id):
+                logger.debug(f"Oh shit, I'm sorry: {vkMessage.from_id} is banned.")
                 return None
-            msg = event.object.object.message.text
-            if event.object.object.message.from_id != event.object.object.message.peer_id:
-                userId = event.object.object.message.from_id
+            msg = vkMessage.text
+            if vkMessage.from_id != vkMessage.peer_id:
+                userId = vkMessage.from_id
                 msg = msg[1:]
             else:
                 userId = None
             attachedPhotos = []
-            print(event.object.object.message.fwd_messages, event.object.object.message)
             if 'attachedPhotos' in self._funcParams:
-                for attachment in event.object.object.message.attachments:
+                for attachment in vkMessage.attachments:
                     if attachment.photo:
                         attachedPhotos.append(attachment.photo.sizes[-1].url)
 
             fwd = []
             fwdNames = []
-            for x in [event.object.object.message.reply_message] + event.object.object.message.fwd_messages:
-                if x:
-                    fwd.append(x.text)
-                    fwdNames.append(x.from_id)
-                    if 'attachedPhotos' in self._funcParams:
-                        for attachment in x.attachments:
-                            if attachment.photo:
-                                attachedPhotos.append(attachment.photo.sizes[-1].url)
 
+            def unpackFwd(msgs):
+                for x in msgs:
+                    if x:
+                        if x.text:
+                            fwd.append(x.text)
+                            fwdNames.append(x.from_id)
+                        if x.fwd_messages:
+                            unpackFwd(x.fwd_messages)
+                        if 'attachedPhotos' in self._funcParams:
+                            for attachment in x.attachments:
+                                if attachment.photo:
+                                    attachedPhotos.append(attachment.photo.sizes[-1].url)
+
+            unpackFwd([vkMessage.reply_message] + vkMessage.fwd_messages)
             if fwd:
                 fwd = '!@next!@'.join(fwd)
                 msg = f'{msg} {fwd}'
@@ -172,7 +187,7 @@ class Bot(AbstractBot):
             msg = self._tagsFormatter.format(msg)
             funcArgs = {}
             if '_id' in self._funcParams:
-                funcArgs.update({'_id': event.object.object.message.from_id})
+                funcArgs.update({'_id': vkMessage.from_id})
             if 'msg' in self._funcParams:
                 funcArgs.update({'msg': msg})
             if 'fwdNames' in self._funcParams:
@@ -187,7 +202,7 @@ class Bot(AbstractBot):
             if 'attachedPhotos' in self._funcParams:
                 funcArgs.update({'attachedPhotos': attachedPhotos})
             if 'attachedDocs' in self._funcParams:
-                funcArgs.update({'attachedDocs': [x.doc.url for x in event.object.object.message.attachments]})
+                funcArgs.update({'attachedDocs': [x.doc.url for x in vkMessage.attachments]})
 
             try:
                 r = await self._func(**funcArgs)
@@ -200,17 +215,17 @@ class Bot(AbstractBot):
                 for msg in r:
                     if type(msg) is self._imageType:
                         if msg.url:
-                            await self._apiMethods['sendImagesFromURLs'](event.object.object.message.peer_id,
+                            await self._apiMethods['sendImagesFromURLs'](vkMessage.peer_id,
                                                                          [msg.url], userId)
                         elif msg.filepath:
-                            await self._apiMethods['sendImagesFromFiles'](event.object.object.message.peer_id,
+                            await self._apiMethods['sendImagesFromFiles'](vkMessage.peer_id,
                                                                           [msg.filepath], userId)
                     elif type(msg) is self._docType:
-                        await self._apiMethods['sendDocs'](event.object.object.message.from_id, [msg.filepath])
+                        await self._apiMethods['sendDocs'](vkMessage.from_id, [msg.filepath])
                     elif type(msg) is str:
-                        await self._apiMethods['sendText'](event.object.object.message.peer_id, [msg])
+                        await self._apiMethods['sendText'](vkMessage.peer_id, [msg])
             except APIError:
-                await self._apiMethods['sendText'](event.object.object.message.peer_id,
+                await self._apiMethods['sendText'](vkMessage.peer_id,
                                                    [("Начни переписку со мной, чтобы я мог отправлять тебе вложения."
                                                      "И желательно подпишись 😏")
                                                     ])

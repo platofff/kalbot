@@ -165,10 +165,11 @@ class Bot(AbstractBot):
 
             fwd = []
             fwdNames = []
+            fwdMsgs = []
 
             def unpackFwd(msgs):
                 for x in msgs:
-                    if x:
+                    if x and not x in fwdMsgs:
                         if x.text:
                             fwd.append(x.text)
                             fwdNames.append(x.from_id)
@@ -178,6 +179,7 @@ class Bot(AbstractBot):
                             for attachment in x.attachments:
                                 if attachment.photo:
                                     attachedPhotos.append(attachment.photo.sizes[-1].url)
+                        fwdMsgs.append(x)
 
             unpackFwd([vkMessage.reply_message] + vkMessage.fwd_messages)
             if fwd:

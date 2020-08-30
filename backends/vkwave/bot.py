@@ -148,6 +148,7 @@ class Bot(AbstractBot):
             else:
                 userId = None
             attachedPhotos = []
+            print(event.object.object.message.fwd_messages, event.object.object.message)
             if 'attachedPhotos' in self._funcParams:
                 for attachment in event.object.object.message.attachments:
                     if attachment.photo:

@@ -241,7 +241,7 @@ objectionconf - сохранить конкретных персонажей д�
             jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.json')
             with open(jsonFile, 'w') as file:
                 file.write(result)
-            result = [self.Doc(filepath=jsonFile)]
+            result = [self.Doc(filepath=jsonFile), 'Загрузи этот файл на http://objection.lol/maker нажав кнопку "Load".']
             return result
 
     class _ObjectionConf(_Handler):

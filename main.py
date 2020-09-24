@@ -4,23 +4,8 @@ import os
 import sys
 from threading import Thread
 
-from backends.vkwave.bot import Bot as VkwaveBot
+from frontends.vkwave.bot import Bot as VkwaveBot
 from abstract.database import Database
-
-backends = ['vkwave']
-
-try:
-    if os.environ['DEBUG'] in ['1', 'true']:
-        logging.basicConfig(level=logging.DEBUG)
-except KeyError:
-    pass
-
-try:
-    backends = os.environ['BACKENDS'].split(',')
-except KeyError:
-    pass
-
-os.chdir(sys.path[0])
 
 
 class LoopThread(Thread):
@@ -33,15 +18,34 @@ class LoopThread(Thread):
         self.loop.run_forever()
 
 
-async def main():
-    if 'vkwave' in backends:
-        db = Database()
-        await VkwaveBot.create(db.con)
-    else:
-        raise Exception('Unsupported backend!')
+class Application:
+    _frontends: list
+
+    def __init__(self):
+        os.chdir(sys.path[0])
+
+        try:
+            if os.environ['DEBUG'] in ['1', 'true']:
+                logging.basicConfig(level=logging.DEBUG)
+        except KeyError:
+            logging.basicConfig(level=logging.INFO)
+
+        try:
+            self._frontends = os.environ['FRONTENDS'].split(',')
+        except KeyError:
+            self._frontends = ['vkwave']
+
+    async def main(self):
+        if 'vkwave' in self._frontends:
+            db = Database()
+            await VkwaveBot.create(db.con, loop)
+        else:
+            raise Exception('Unsupported backend!')
+
 
 if __name__ == "__main__":
+    app = Application()
     loop = asyncio.new_event_loop()
     loopThread = LoopThread(loop)
     loopThread.start()
-    loop.call_soon_threadsafe(asyncio.ensure_future, main())
+    loop.call_soon_threadsafe(asyncio.ensure_future, app.main())

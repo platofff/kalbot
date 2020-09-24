@@ -1,12 +1,11 @@
 import os
 import sys
 import tempfile
-import textwrap
-from io import BytesIO
+
 from math import ceil
 from random import randint
 
-import requests
+from urllib import request
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -26,8 +25,8 @@ class Demotivator:
     def create(self, url, text1, text2, name=None):
         if not name:
             name = str(randint(-32767, 32767)) + '.png'
-        r = requests.get(url, timeout=3)
-        img = Image.open(BytesIO(r.content))
+        r = request.urlopen(url)
+        img = Image.open(r)
         img = img.resize((542, 358))
         result = self.pattern.copy()
         result.paste(img, (58, 58))
@@ -37,10 +36,35 @@ class Demotivator:
             self.background.paste(img, (0, 0))
             return self.background.copy()
 
-        text1 = '\n'.join([textwrap.fill(x, self.MAX_LEN_BIG) for x in text1.split('\n')])
-        text2 = '\n'.join([textwrap.fill(x, self.MAX_LEN_SM) for x in text2.split('\n')])
+        # text1 = '\n'.join([textwrap.fill(x, self.MAX_LEN_BIG) for x in text1.split('\n')])
+        # text2 = '\n'.join([textwrap.fill(x, self.MAX_LEN_SM) for x in text2.split('\n')])
 
         draw = ImageDraw.Draw(result)
+
+        def formatText(text, font):
+            text = text.split('\n').reverse() or [text]
+            _l = len(text)
+            for i in range(_l):
+                while True:
+                    w, h = draw.textsize(text[i], font=font)
+                    if w < 630:
+                        break
+                    else:
+                        splitted = text[i].split(' ')
+                        if len(splitted) == 1:
+                            break
+                        if len(text) == i + 1:
+                            text.append('')
+                        text[i + 1] = f'{text[i + 1]} {splitted.pop(0)}'
+                        text[i] = ' '.join(splitted)
+            if _l == len(text):
+                return '\n'.join(list(text.reverse() or text))
+            else:
+                return formatText('\n'.join(list(text.reverse() or text)), font)
+
+        text1 = formatText(text1, self.font1).lstrip()
+        text2 = formatText(text2, self.font2).lstrip()
+
         w1, h1 = draw.textsize(text1, font=self.font1)
         w2, h2 = draw.textsize(text2, font=self.font2)
 

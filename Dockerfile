@@ -1,17 +1,14 @@
-FROM ubuntu:20.04
-RUN adduser -q --gecos "" --disabled-password --uid 1000 app
+FROM alpine:3.12
+RUN adduser -D -u 1000 app
 ADD . /home/app
-RUN apt-get update && apt-get install --install-recommends=false -y \
-python3-pip \
-python3-pil \
-python3-pymysql \
-python3-requests \
-python3-cachetools \
-python3-yaml \
-python3-multidict \
-python3-aiohttp \
-python3-typing-extensions
+RUN apk add py3-pip\
+ py3-pillow\
+ py3-cachetools\
+ py3-yaml\
+ py3-multidict\
+ py3-aiohttp\
+ py3-typing-extensions
 USER app
 WORKDIR /home/app
-RUN pip3 install --user vkwave
+RUN pip3 install --user pymysql vkwave
 ENTRYPOINT ["python3", "/home/app/main.py"]

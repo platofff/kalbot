@@ -2,6 +2,9 @@ import json
 from random import randint, choice
 from threading import Thread, Condition
 from time import sleep
+from urllib.error import HTTPError, URLError
+
+from PIL import UnidentifiedImageError
 
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
@@ -48,7 +51,7 @@ class Vasya(Thread):
                     f'demotivator{len(self._demCache)}.png'
                 )
                 break
-            except:
+            except (UnidentifiedImageError, HTTPError, URLError):
                 links.pop(links.index(link))
                 link = links[randint(0, len(links) - 1)]
                 continue

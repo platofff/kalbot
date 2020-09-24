@@ -3,7 +3,6 @@ RUN adduser -D -u 1000 app
 ADD . /home/app
 RUN apk add py3-pip\
  py3-pillow\
- py3-requests\
  py3-cachetools\
  py3-yaml\
  py3-multidict\

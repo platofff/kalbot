@@ -45,7 +45,6 @@ class Demotivator:
                 text = text[1:]
             text = text.split('\n').reverse() or [text]
             _l = len(text)
-            print(text)
             for i in range(_l):
                 while True:
                     w, h = draw.textsize(text[i], font=font)

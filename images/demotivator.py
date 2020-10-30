@@ -12,8 +12,8 @@ from PIL import Image, ImageDraw, ImageFont
 class Demotivator:
     pattern: Image
     background: Image
-    BIG_FONT_DIV = 6
-    SM_FONT_DIV = 10
+    BIG_FONT_DIV = 14
+    SM_FONT_DIV = 24
 
     def create(self, url, text1, text2, name=None):
         if not name:
@@ -22,9 +22,9 @@ class Demotivator:
         img = Image.open(r)
 
         font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSerif-TWEmoji.ttf"),
-                                   size=ceil(img.size[1] / self.BIG_FONT_DIV), encoding="unic")
+                                   size=ceil((img.size[1] + img.size[0]) / self.BIG_FONT_DIV), encoding="unic")
         font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSans-TWEmoji.ttf"),
-                                   size=ceil(img.size[1] / self.SM_FONT_DIV), encoding="unic")
+                                   size=ceil((img.size[1] + img.size[0]) / self.SM_FONT_DIV), encoding="unic")
 
         result = Image.new('RGB', (ceil(img.size[0] * 1.2), ceil(img.size[1] * 1.4)))
         draw = ImageDraw.Draw(result)
@@ -41,8 +41,11 @@ class Demotivator:
         max_w = ceil(result.size[0] * 0.8)
 
         def formatText(text, font):
+            if text[0] == ' ':
+                text = text[1:]
             text = text.split('\n').reverse() or [text]
             _l = len(text)
+            print(text)
             for i in range(_l):
                 while True:
                     w, h = draw.textsize(text[i], font=font)

@@ -90,7 +90,6 @@ class Demotivator:
                     text[-1] = text[-1].lstrip()
                 except IndexError:
                     pass
-                print(text)
                 return '\n'.join(reversed(text))
             else:
                 for i in range(len(text)):

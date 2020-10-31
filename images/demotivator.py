@@ -38,7 +38,7 @@ class Demotivator:
             self.background.paste(img, (0, 0))
             return self.background.copy()
 
-        max_w = ceil(result.size[0] * 0.8)
+        max_w = ceil(result.size[0] * 0.95)
 
         def formatText(text, font, repeat=False):
             if not text:

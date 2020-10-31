@@ -40,10 +40,15 @@ class Demotivator:
 
         max_w = ceil(result.size[0] * 0.8)
 
-        def formatText(text, font):
+        def formatText(text, font, repeat=False):
+            if not text:
+                return ''
             if text[0] == ' ':
                 text = text[1:]
-            text = text.split('\n').reverse() or [text]
+            text = text.split('\n') or [text]
+            if len(text) > 1 and not repeat:
+                x = [formatText(t, font, True) for t in text]
+                return '\n'.join(x)
             _l = len(text)
             for i in range(_l):
                 while True:
@@ -61,9 +66,10 @@ class Demotivator:
                                 while True:
                                     splitted.append('')
                                     splitted[new_string - 1] = list(splitted[new_string - 1])
+                                    ws, hs = draw.textsize(''.join(splitted[new_string - 1]), font=font)
                                     while ws > max_w:
-                                        splitted[new_string] = splitted[new_string - 1].pop(-1) + splitted[new_string]
                                         ws, hs = draw.textsize(''.join(splitted[new_string - 1]), font=font)
+                                        splitted[new_string] = splitted[new_string - 1].pop(-1) + splitted[new_string]
                                     splitted[new_string - 1] = ''.join(splitted[new_string - 1])
                                     wn, hn = draw.textsize(splitted[new_string], font=font)
                                     if wn <= max_w:
@@ -75,12 +81,24 @@ class Demotivator:
                         text[i + 1] = f'{text[i + 1]} {splitted.pop(0)}'
                         text[i] = ' '.join(splitted)
             if _l == len(text):
-                return '\n'.join(list(text.reverse() or text))
+                text[-1] = text[-1].lstrip()
+                if text[-1] == '':
+                    text = list(text)[:-1]
+                else:
+                    text = list(text)
+                try:
+                    text[-1] = text[-1].lstrip()
+                except IndexError:
+                    pass
+                print(text)
+                return '\n'.join(reversed(text))
             else:
-                return formatText('\n'.join(list(text.reverse() or text)), font)
+                for i in range(len(text)):
+                    text[i].replace('\n', '')
+                return formatText('\n'.join(list(text)), font, True)
 
-        text1 = formatText(text1, font1).lstrip()
-        text2 = formatText(text2, font2).lstrip()
+        text1 = formatText(text1, font1)
+        text2 = formatText(text2, font2)
 
         w1, h1 = draw.textsize(text1, font=font1)
         w2, h2 = draw.textsize(text2, font=font2)

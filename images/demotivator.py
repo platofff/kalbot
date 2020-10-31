@@ -53,7 +53,23 @@ class Demotivator:
                     else:
                         splitted = text[i].split(' ')
                         if len(splitted) == 1:
-                            break
+                            ws, hs = draw.textsize(splitted[0], font=font)
+                            if ws <= max_w:
+                                break
+                            else:
+                                new_string = 1
+                                while True:
+                                    splitted.append('')
+                                    splitted[new_string - 1] = list(splitted[new_string - 1])
+                                    while ws > max_w:
+                                        splitted[new_string] = splitted[new_string - 1].pop(-1) + splitted[new_string]
+                                        ws, hs = draw.textsize(splitted[new_string - 1], font=font)
+                                    splitted[new_string - 1] = ''.join(spliited[new_string - 1])
+                                    wn, hn = draw.textsize(splitted[new_string], font=font)
+                                    if wn <= max_w:
+                                        break
+                                    else:
+                                        new_string += 1
                         if len(text) == i + 1:
                             text.append('')
                         text[i + 1] = f'{text[i + 1]} {splitted.pop(0)}'

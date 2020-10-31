@@ -63,8 +63,8 @@ class Demotivator:
                                     splitted[new_string - 1] = list(splitted[new_string - 1])
                                     while ws > max_w:
                                         splitted[new_string] = splitted[new_string - 1].pop(-1) + splitted[new_string]
-                                        ws, hs = draw.textsize(splitted[new_string - 1], font=font)
-                                    splitted[new_string - 1] = ''.join(spliited[new_string - 1])
+                                        ws, hs = draw.textsize(''.join(splitted[new_string - 1]), font=font)
+                                    splitted[new_string - 1] = ''.join(splitted[new_string - 1])
                                     wn, hn = draw.textsize(splitted[new_string], font=font)
                                     if wn <= max_w:
                                         break

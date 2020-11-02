@@ -202,6 +202,11 @@ class Bot(AbstractBot):
                 funcArgs.update({'attached_photos': attachedPhotos})
             if 'attached_docs' in self._funcParams:
                 funcArgs.update({'attached_docs': [x.doc.url for x in vkMessage.attachments]})
+            if 'attached_voice' in self._funcParams:
+                try:
+                    funcArgs.update({'attached_voice': (lambda: True if vkMessage.attachments[0].doc.type == DocsDocAttachmentType.AUDIO_MESSAGE else False)()})
+                except (IndexError, KeyError):
+                    pass
 
             async def postResult(r: list):
                 try:

@@ -20,6 +20,8 @@ from vkwave.longpoll import BotLongpollData, BotLongpoll
 from vkwave.types.bot_events import BotEventType
 from sys import path
 
+from vkwave.types.objects import DocsDocAttachmentType
+
 path.append("...")
 from abstract.bot import Bot as AbstractBot
 
@@ -28,14 +30,7 @@ loop: asyncio.AbstractEventLoop
 
 
 class Bot(AbstractBot):
-    _gid: int
-    _admins: list
-    _apiSession: API
-    _photoUploader: PhotoUploader
-    _docUploader: DocUploader
-    _lpExtension: BotLongpollExtension
-    _dp: Dispatcher
-    _apiMethods = {}
+    _apiMethods: dict = {}
 
     async def _APIsendImagesFromURLs(self, peer_id: int, urls: list, user_id=None) -> None:
         attachment = await self._photoUploader.get_attachments_from_links(links=urls, peer_id=user_id)
@@ -119,15 +114,14 @@ class Bot(AbstractBot):
 
     class _Callback:
         class TagsFormatter:
-            def _get(self, match: re.Match) -> str:
+            @classmethod
+            def _get(cls, match: re.Match) -> str:
                 return re.sub(r'\[.*\|', '', match.group(0))[:-1]
 
             def format(self, msg: str) -> str:
                 return re.sub(r'\[.*?\|.*?\]', self._get, msg)
 
-        _tagsFormatter: TagsFormatter
-
-        def __init__(self, func: Callable[[int, str, list or None], list], image_type: type,
+        def __init__(self, func: Callable[[int, str, list, None], list], image_type: type,
                      api_methods: dict, rate_counter: Callable[[int], Awaitable[bool]], doc_type: type):
             self._func = func
             self._imageType = image_type
@@ -180,8 +174,7 @@ class Bot(AbstractBot):
 
             unpackFwd([vkMessage.reply_message] + vkMessage.fwd_messages)
             if fwd:
-                fwd = '!@next!@'.join(fwd)
-                msg = f'{msg} {fwd}'
+                msg = f'{msg} {"!@next!@".join(fwd)}'
 
             msg = self._tagsFormatter.format(msg)
             funcArgs = {}
@@ -202,6 +195,12 @@ class Bot(AbstractBot):
                 funcArgs.update({'attached_photos': attachedPhotos})
             if 'attached_docs' in self._funcParams:
                 funcArgs.update({'attached_docs': [x.doc.url for x in vkMessage.attachments]})
+            if 'attached_voice' in self._funcParams:
+                try:
+                    funcArgs.update({'attached_voice': (lambda: vkMessage.attachments[0]
+                    if vkMessage.attachments[0].doc.type == DocsDocAttachmentType.AUDIO_MESSAGE else None)()})
+                except (IndexError, KeyError):
+                    pass
 
             async def postResult(r: list):
                 try:
@@ -234,7 +233,7 @@ class Bot(AbstractBot):
                                    'использованием одной из команд. Если это не так, то будь другом, напиши '
                                    '[id560302519|разработчику бота]. Спасибо.')])
 
-    async def _regHandler(self, h: type) -> None:
+    async def _regHandler(self, h: _Callback) -> None:
         eventTypeFilter = EventTypeFilter(BotEventType.MESSAGE_NEW)
 
         class TextFilter(BaseFilter):

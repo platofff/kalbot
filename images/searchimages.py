@@ -26,9 +26,10 @@ class ImgSearch:
             'accept-language': 'en-US,en;q=0.9',
         }
 
-    def _getImages(self, objs):
+    @classmethod
+    def _getImages(cls, objects: dict):
         images = []
-        for obj in objs:
+        for obj in objects:
             if obj["image"].endswith(('.gif', '.jpg', '.png', '.jpeg')):
                 images.append(obj["image"])
         return images

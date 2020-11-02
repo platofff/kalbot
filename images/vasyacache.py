@@ -1,4 +1,5 @@
 import json
+import logging
 from random import randint, choice
 from threading import Thread, Condition
 from time import sleep
@@ -9,33 +10,34 @@ from PIL import UnidentifiedImageError
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
 
+logger = logging.getLogger(__name__)
+
 
 class Vasya(Thread):
-    cachesize = 10
-    _demCache = []
-    _d: Demotivator
-    _i: ImgSearch
+    cacheSize = 10
+    _demCache: list = []
 
-    def __init__(self, demotivator: Demotivator, imgSearch: ImgSearch):
+    def __init__(self, demotivator: Demotivator, img_search: ImgSearch):
         Thread.__init__(self)
         with open("vasya.json") as v:
             self._v = json.load(v)
         self.running = True
         self._d = demotivator
-        self._i = imgSearch
+        self._i = img_search
         self.cv = Condition()
 
     def run(self) -> None:
         while self.running:
-            if len(self._demCache) < self.cachesize:
+            if len(self._demCache) < self.cacheSize:
                 for i in range(10 - len(self._demCache)):
                     self._getDemotivator()
             sleep(1)
 
     def _getDemotivator(self) -> None:
-        links = []
-        msg0: str
-        msg1: str
+        links: list = []
+        msg0: str = ''
+        msg1: str = ''
+        dem: str = ''
         while not links:
             msg0, msg1 = choice(list(self._v.items()))
             msg1 = ' '.join(msg1)
@@ -58,9 +60,12 @@ class Vasya(Thread):
         self._demCache.append(dem)
         with self.cv:
             self.cv.notify()
+        logger.debug(f'There are {len(self._demCache)} of {self.cacheSize} images in demotivators cache now.')
 
     def getDemotivator(self) -> str:
         with self.cv:
             while not self._demCache:
                 self.cv.wait()
-            return self._demCache.pop(-1)
+            dem = self._demCache.pop(-1)
+            logger.debug(f'There are {len(self._demCache)} of {self.cacheSize} images in demotivators cache now.')
+            return dem

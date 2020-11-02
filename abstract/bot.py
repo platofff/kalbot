@@ -2,13 +2,14 @@ import base64
 import json
 import re
 import tempfile
+from abc import ABC, abstractmethod
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from datetime import datetime
 from os.path import join
 from random import randint, choice
 from string import ascii_letters
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional, Union, Iterable, Tuple
 from urllib.error import HTTPError, URLError
 
 import pymysql
@@ -28,7 +29,7 @@ class Bot:
         self._dbConnection = db_connection
 
     class _RateLimit:
-        _recent = {}
+        _recent: dict = {}
 
         async def ratecounter(self, _id: int) -> bool:
             now = datetime.now().timestamp()
@@ -39,7 +40,7 @@ class Bot:
                 self._recent[_id] = now + 3
                 return True
 
-    class _Handler:
+    class _Handler(ABC):
         _imgSearch: ImgSearch
         _dbConnection: pymysql.connections.Connection
 
@@ -50,8 +51,8 @@ class Bot:
                 self._dbConnection = kwargs['dbConnection']
 
         class Doc:
-            url: str
-            filepath: str
+            url: Optional[str]
+            filepath: Optional[str]
 
             def __init__(self, url: str = None, filepath: str = None):
                 assert url or filepath, 'URL or filepath for document must be provided.'
@@ -62,14 +63,16 @@ class Bot:
             ...
 
         @staticmethod
+        @abstractmethod
         async def filter(query: str) -> bool:
             ...
 
-        def run(self, **kwargs) -> [list, None]:
+        @abstractmethod
+        def run(self, **kwargs) -> Union[list, None]:
             ...
 
         @classmethod
-        def _parseMsg(cls, msg: [str, Image]) -> dict:  # returns a parsed dict of command params
+        def _parseMsg(cls, msg: str) -> dict:  # returns a parsed dict of command params
             command = re.split(' |\n', msg)[0]
             args = msg[len(command) + 1:]
             return {
@@ -298,3 +301,13 @@ objectionconf - сохранить конкретных персонажей д�
             with self._dbCon.cursor() as cur:
                 cur.execute(f"replace into `users`(`userId`, `objectionConfig`) values(%s, %s)", (_id, dbConfig))
             return result
+
+    class _NoVoice(_Handler):
+        @staticmethod
+        async def filter(attached_voice: list) -> bool:
+            if attached_voice:
+                return True
+
+        async def run(self, _id: int):
+            return 'Пиши нормально бляь!'
+

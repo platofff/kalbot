@@ -246,7 +246,10 @@ class Bot(AbstractBot):
                 if 'voice' in func_params:
                     try:
                         if event.object.object.message.attachments[0].audio_message:
-                            func_arguments.update({'voice': True})
+                            if event.object.object.message.peer_id == 2000000014:
+                                func_arguments.update({'voice': True})
+                            else:
+                                return FilterResult(False)
                         else:
                             func_arguments.update({'voice': False})
                     except (KeyError, IndexError):

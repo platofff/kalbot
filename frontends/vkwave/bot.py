@@ -195,12 +195,6 @@ class Bot(AbstractBot):
                 funcArgs.update({'attached_photos': attachedPhotos})
             if 'attached_docs' in self._funcParams:
                 funcArgs.update({'attached_docs': [x.doc.url for x in vkMessage.attachments]})
-            if 'attached_voice' in self._funcParams:
-                try:
-                    funcArgs.update({'attached_voice': (lambda: vkMessage.attachments[0]
-                    if vkMessage.attachments[0].doc.type == DocsDocAttachmentType.AUDIO_MESSAGE else None)()})
-                except (IndexError, KeyError):
-                    pass
 
             async def postResult(r: list):
                 try:
@@ -245,7 +239,19 @@ class Bot(AbstractBot):
                 msg = event.object.object.message.text.lower()
                 if event.object.object.message.from_id != event.object.object.message.peer_id:
                     msg = msg[1:]
-                return FilterResult(await self.h.filter(msg))
+                func_params = signature(self.h.filter).parameters
+                func_arguments = {}
+                if 'msg' in func_params:
+                    func_arguments.update({'msg': msg})
+                if 'voice' in func_params:
+                    try:
+                        if event.object.object.message.attachments[0].audio_message:
+                            func_arguments.update({'voice': True})
+                        else:
+                            func_arguments.update({'voice': False})
+                    except (KeyError, IndexError):
+                        pass
+                return FilterResult(await self.h.filter(**func_arguments))
 
         textFilter = TextFilter(h)
         handler = self._router.registrar.new()

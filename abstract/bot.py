@@ -64,7 +64,7 @@ class Bot:
 
         @staticmethod
         @abstractmethod
-        async def filter(query: str) -> bool:
+        async def filter(msg: str) -> bool:
             ...
 
         @abstractmethod
@@ -110,8 +110,8 @@ objectionconf - сохранить конкретных персонажей д�
 
     class _Optimisation(_Handler):
         @staticmethod
-        async def filter(query: str) -> bool:
-            return query.startswith(('оптимизация', 'optimisation'))
+        async def filter(msg: str) -> bool:
+            return msg.startswith(('оптимизация', 'optimisation'))
 
         def run(self) -> list:
             def bashEncode(string):
@@ -304,10 +304,9 @@ objectionconf - сохранить конкретных персонажей д�
 
     class _NoVoice(_Handler):
         @staticmethod
-        async def filter(attached_voice: list) -> bool:
-            if attached_voice:
+        async def filter(voice: bool = False) -> bool:
+            if voice:
                 return True
 
-        async def run(self, _id: int):
-            return 'Пиши нормально бляь!'
-
+        def run(self, _id: int) -> list:
+            return ['Пиши нормально бляь!']

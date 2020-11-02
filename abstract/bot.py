@@ -298,3 +298,13 @@ objectionconf - сохранить конкретных персонажей д�
             with self._dbCon.cursor() as cur:
                 cur.execute(f"replace into `users`(`userId`, `objectionConfig`) values(%s, %s)", (_id, dbConfig))
             return result
+
+
+    class _NoVoice(_Handler):
+        @staticmethod
+        async def filter(attached_voice: bool) -> bool:
+            if attached_voice:
+                return True
+
+        async def run(self, _id: int):
+            return 'Пиши нормально бляь!'

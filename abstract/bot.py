@@ -219,16 +219,16 @@ objectionconf - сохранить конкретных персонажей д�
         def __init__(self, db_connection: pymysql.connections.Connection):
             super().__init__()
             self._jsonPattern = {
-                "Id": 0,
-                "Text": "",
-                "PoseId": 1,
-                "PoseAnimation": True,
-                "Flipped": False,
-                "BubbleType": "0",
-                "GoNext": False,
-                "MergeNext": False,
-                "DoNotTalk": False,
-                "Username": ""
+                "id": 0,
+                "text": "",
+                "poseId": 1,
+                "poseAnimation": True,
+                "flipped": False,
+                "bubbleType": "0",
+                "goNext": False,
+                "mergeNext": False,
+                "doNotTalk": False,
+                "username": ""
             }
             self._usage = 'Использование только с пересланными сообщениями.'
             self._dbCon = db_connection
@@ -252,14 +252,14 @@ objectionconf - сохранить конкретных персонажей д�
                     userConfig = {}
             for i in range(len(args)):
                 phrase = self._jsonPattern.copy()
-                phrase['Username'] = f"{fwd_names[i]['firstName']} {fwd_names[i]['lastName'][:1]}."
-                phrase['Text'] = args[i]
-                phrase['Id'] = i + 1
-                if phrase['Username'] in userConfig:
-                    phrase['PoseId'] = userConfig[phrase['Username']]
+                phrase['username'] = f"{fwd_names[i]['firstName']} {fwd_names[i]['lastName'][:1]}."
+                phrase['text'] = args[i]
+                phrase['id'] = i + 1
+                if phrase['username'] in userConfig:
+                    phrase['poseId'] = userConfig[phrase['username']]
                 result.append(phrase)
             result = base64.b64encode(bytes(json.dumps(result), 'ascii')).decode('ascii')
-            jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.json')
+            jsonFile = join(tempfile.gettempdir(), str(randint(-32767, 32767)) + '.objection')
             with open(jsonFile, 'w') as file:
                 file.write(result)
             result = [self.Doc(filepath=jsonFile),
@@ -275,7 +275,7 @@ objectionconf - сохранить конкретных персонажей д�
         async def filter(msg: str) -> bool:
             return msg in ['обжекшонконф', 'objectionconf']
 
-        async def run(self, _id: int, attached_docs: list) -> list:
+        def run(self, _id: int, attached_docs: list) -> list:
             result = []
             if not attached_docs:
                 result.append('Команда требует прикрепленного JSON файла.')
@@ -292,9 +292,9 @@ objectionconf - сохранить конкретных персонажей д�
                     dbConfig = {}
             newDbConfig = {}
             for c in newConfig:
-                if not c["Username"] in newDbConfig.keys():
-                    newDbConfig.update({c["Username"]: c["PoseId"]})
-                    result.append(f'Персонажу {c["Username"]} назначается поза {c["PoseId"]}')
+                if not c["username"] in newDbConfig.keys():
+                    newDbConfig.update({c["username"]: c["poseId"]})
+                    result.append(f'Персонажу {c["username"]} назначается поза {c["poseId"]}')
             dbConfig.update(newDbConfig)
             dbConfig = json.dumps(dbConfig)
             self._dbCon.ping(reconnect=True)

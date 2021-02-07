@@ -27,7 +27,7 @@ VK_BOT_TOKEN=<токен доступа группы ВК>
 
 ##### Docker (проверено на arm64)
 ```
-docker build kalbot .
+docker build -t kalbot .
 docker run kalbot
 ```
 ##### Pipenv

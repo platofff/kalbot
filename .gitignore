@@ -132,3 +132,4 @@ dmypy.json
 .idea/
 checklist.txt
 vkapi.yaml
+mysql.yaml

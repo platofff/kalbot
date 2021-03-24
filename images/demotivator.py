@@ -1,118 +1,68 @@
 import os
-import sys
-import tempfile
-
-from math import ceil
-from random import randint
-
+from tempfile import gettempdir
+from math import floor, ceil
+from random import choice
+from string import ascii_letters
 from urllib import request
-from PIL import Image, ImageDraw, ImageFont
+
+from wand.color import Color
+from wand.drawing import Drawing
+from wand.font import Font
+from wand.image import Image
 
 
 class Demotivator:
-    pattern: Image
-    background: Image
-    BIG_FONT_DIV = 14
-    SM_FONT_DIV = 24
+    BIG_FONT_SIZE = 0.052
+    SM_FONT_SIZE = 0.036
 
-    def create(self, url, text1, text2, name=None):
-        if not name:
-            name = str(randint(-32767, 32767)) + '.png'
-        r = request.urlopen(url)
-        img = Image.open(r)
+    @classmethod
+    def _get_name(cls) -> str:
+        while True:
+            name = ''.join([choice(ascii_letters) for _ in range(4)]) + '.png'
+            if not os.path.exists(os.path.join(gettempdir(), name)):
+                return name
 
-        font1 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSerif-TWEmoji.ttf"),
-                                   size=ceil((img.size[1] + img.size[0]) / self.BIG_FONT_DIV), encoding="unic")
-        font2 = ImageFont.truetype(font=os.path.join(sys.path[0], "images", "fonts", "LiberationSans-TWEmoji.ttf"),
-                                   size=ceil((img.size[1] + img.size[0]) / self.SM_FONT_DIV), encoding="unic")
+    @classmethod
+    def _dem_text(cls, img: Image, txt: str, font_k: float, font: str) -> Image:
+        dem = Image(height=1000, width=floor(img.width * 1.1))
+        dem.options['pango:align'] = 'center'
+        dem.options['pango:wrap'] = 'word'
+        dem.options['pango:single-paragraph'] = 'true'
+        dem.options['trim:edges'] = 'south'
+        dem.font = Font(font)
+        dem.font_size = floor(font_k * dem.width)
+        text = f"<span color='#ffffff'>{txt}</span>"
+        dem.background_color = Color('black')
+        dem.pseudo(dem.width, dem.height, pseudo=f"pango:{text}")
+        dem.trim(color=Color('black'))
+        return dem
 
-        result = Image.new('RGB', (ceil(img.size[0] * 1.2), ceil(img.size[1] * 1.4)))
-        draw = ImageDraw.Draw(result)
-        offset = ceil(img.size[0] * 0.1)
-        result.paste(img, (offset, offset))
-        draw.rectangle([offset - 6, offset - 6, result.size[0] - offset + 6, img.size[1] + offset + 6], fill=None,
-                       outline=(255, 255, 255), width=3)
+    def create(self, url: str, text1: str, text2: str, name: str = _get_name()) -> str:
+        draw = Drawing()
+        draw.stroke_color = Color('white')
+        r = request.urlopen(url).read()
+        img = Image(blob=r)
+        img.transform(resize='1500x1500>')
 
-        def addBlack(px, img):
-            self.background = Image.new('RGB', (img.size[0], img.size[1] + px), (0, 0, 0))
-            self.background.paste(img, (0, 0))
-            return self.background.copy()
+        dem1 = self._dem_text(img, text1, self.BIG_FONT_SIZE, 'serif')
+        dem2 = self._dem_text(img, text2, self.SM_FONT_SIZE, 'sans')
 
-        max_w = ceil(result.size[0] * 0.95)
-
-        def formatText(text, font, repeat=False):
-            if not text:
-                return ''
-            if text[0] == ' ':
-                text = text[1:]
-            text = text.split('\n') or [text]
-            if len(text) > 1 and not repeat:
-                x = [formatText(t, font, True) for t in text]
-                return '\n'.join(x)
-            _l = len(text)
-            for i in range(_l):
-                while True:
-                    w, h = draw.textsize(text[i], font=font)
-                    if w < max_w:
-                        break
-                    else:
-                        splitted = text[i].split(' ')
-                        if len(splitted) == 1:
-                            ws, hs = draw.textsize(splitted[0], font=font)
-                            if ws <= max_w:
-                                break
-                            else:
-                                new_string = 1
-                                while True:
-                                    splitted.append('')
-                                    splitted[new_string - 1] = list(splitted[new_string - 1])
-                                    ws, hs = draw.textsize(''.join(splitted[new_string - 1]), font=font)
-                                    while ws > max_w:
-                                        ws, hs = draw.textsize(''.join(splitted[new_string - 1]), font=font)
-                                        splitted[new_string] = splitted[new_string - 1].pop(-1) + splitted[new_string]
-                                    splitted[new_string - 1] = ''.join(splitted[new_string - 1])
-                                    wn, hn = draw.textsize(splitted[new_string], font=font)
-                                    if wn <= max_w:
-                                        break
-                                    else:
-                                        new_string += 1
-                        if len(text) == i + 1:
-                            text.append('')
-                        text[i + 1] = f'{text[i + 1]} {splitted.pop(0)}'
-                        text[i] = ' '.join(splitted)
-            if _l == len(text):
-                text[-1] = text[-1].lstrip()
-                if text[-1] == '':
-                    text = list(text)[:-1]
-                else:
-                    text = list(text)
-                try:
-                    text[-1] = text[-1].lstrip()
-                except IndexError:
-                    pass
-                return '\n'.join(reversed(text))
-            else:
-                for i in range(len(text)):
-                    text[i].replace('\n', '')
-                return formatText('\n'.join(list(text)), font, True)
-
-        text1 = formatText(text1, font1)
-        text2 = formatText(text2, font2)
-
-        w1, h1 = draw.textsize(text1, font=font1)
-        w2, h2 = draw.textsize(text2, font=font2)
-        cur_text_h = result.size[1] - offset - font1.size - img.size[1]
-
-        if h1 + h2 > cur_text_h:
-            black_px = h1 + h2 - cur_text_h
-            result = addBlack(black_px, result)
-            draw = ImageDraw.Draw(result)
-
-        draw.multiline_text(((result.size[0] - w1) / 2, img.size[1] + offset + ceil(font2.size / 2)), text1,
-                            fill="white", font=font1, align="center")
-        draw.multiline_text(((result.size[0] - w2) / 2, ceil(font1.size / 2) + img.size[1] + h1 + offset), text2,
-                            fill="white", font=font2, align="center")
-
-        f_path = os.path.join(tempfile.gettempdir(), name)
-        result.save(f_path)
+        output = Image(width=dem1.width,
+                       height=dem1.height + dem2.height + img.height + floor(0.12 * img.width),
+                       background=Color('black'))
+        img_left = floor(0.05 * img.width)
+        img_top = floor(0.05 * img.width)
+        draw.stroke_width = ceil(img.width / 1000) * 4
+        half_stroke = floor(draw.stroke_width / 4)
+        draw.polygon([(img_left - half_stroke, img_top - half_stroke),
+                      (img_left + img.width, img_top - half_stroke),
+                      (img_left + img.width, img_top + img.height),
+                      (img_left - half_stroke, img_top + img.height)])  # Square polygon around image
+        draw(output)
+        output.composite(image=img, left=img_left, top=img_top)
+        img_height = floor(0.07 * img.width + img.height)
+        output.composite(image=dem1, left=0, top=img_height)
+        output.composite(image=dem2, left=0, top=img_height + dem1.height)
+        f_path = os.path.join(gettempdir(), name)
+        output.save(filename=f_path)
         return f_path

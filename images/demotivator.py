@@ -37,7 +37,9 @@ class Demotivator:
         dem.trim(color=Color('black'))
         return dem
 
-    def create(self, url: str, text1: str, text2: str, name: str = _get_name()) -> str:
+    def create(self, url: str, text1: str, text2: str, name: str = None) -> str:
+        if not name:
+            name = self._get_name()
         draw = Drawing()
         draw.stroke_color = Color('white')
         r = request.urlopen(url).read()

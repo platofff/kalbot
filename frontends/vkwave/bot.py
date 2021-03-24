@@ -1,14 +1,14 @@
 import asyncio
+import logging
 import re
 import traceback
 from inspect import signature
 from os import environ, remove
+from sys import path
 from typing import Callable, Awaitable
 
 import pymysql
 import yaml
-import logging
-
 from vkwave.api import Token, BotSyncSingleToken, API
 from vkwave.api.methods._error import APIError
 from vkwave.bots import TokenStorage, GroupId, Dispatcher, BotLongpollExtension, PhotoUploader, DefaultRouter, \
@@ -18,9 +18,6 @@ from vkwave.bots.core.dispatching.filters.base import FilterResult
 from vkwave.client import AIOHTTPClient
 from vkwave.longpoll import BotLongpollData, BotLongpoll
 from vkwave.types.bot_events import BotEventType
-from sys import path
-
-from vkwave.types.objects import DocsDocAttachmentType
 
 path.append("...")
 from abstract.bot import Bot as AbstractBot
@@ -46,45 +43,37 @@ class Bot(AbstractBot):
         for f in files:
             remove(f)
 
-    async def _APIsendText(self, user_id: int, text: str) -> None:
-        await self._apiSession.get_context().messages.send(
-            peer_id=user_id, message=text, random_id=0
-        )
-
     async def _APIsendDocs(self, user_id: int, files: list) -> None:
         attachment = await self._docUploader.get_attachments_from_paths(file_paths=files, peer_id=user_id)
         await self._apiSession.get_context().messages.send(
             peer_id=user_id, attachment=attachment, random_id=0
         )
-
-    async def _APIgetUsers(self, user_ids: list) -> dict:
-        return await self._apiSession.get_context().users.get(user_ids=user_ids)
-
+    '''
     async def _APIgetGroups(self, group_ids: list) -> dict:
         return await self._apiSession.get_context().groups.get_by_id(group_ids=group_ids)
 
     async def _APIgetMessagesById(self, messages_ids: list) -> list:
         return (await self._apiSession.get_context().messages.get_by_id(message_ids=messages_ids)).response.items
-
+    '''
     def __init__(self, db_connection: pymysql.connections.Connection):
         AbstractBot.__init__(self, db_connection)
         if not ('VK_BOT_TOKEN' in environ):
             with open('vkapi.yaml') as c:
                 config = yaml.safe_load(c)
-                botToken = Token(config["bot_token"])
+                bot_token = Token(config["bot_token"])
                 self._gid = config["group_id"]
         else:
-            botToken = Token(environ['VK_BOT_TOKEN'])
+            bot_token = Token(environ['VK_BOT_TOKEN'])
             self._gid = int(environ['VK_BOT_GID'])
 
         client = AIOHTTPClient()
-        token = BotSyncSingleToken(botToken)
+        token = BotSyncSingleToken(bot_token)
         self._apiSession = API(token, client)
         api = self._apiSession.get_context()
-        lpData = BotLongpollData(self._gid)
-        longpoll = BotLongpoll(api, lpData)
-        tokenStorage = TokenStorage[GroupId]()
-        self._dp = Dispatcher(self._apiSession, tokenStorage)
+        lp_data = BotLongpollData(self._gid)
+        longpoll = BotLongpoll(api, lp_data)
+        token_storage = TokenStorage[GroupId]()
+        self._dp = Dispatcher(self._apiSession, token_storage)
         self._lpExtension = BotLongpollExtension(self._dp, longpoll)
         self._photoUploader = PhotoUploader(api)
         self._docUploader = DocUploader(api)
@@ -123,104 +112,107 @@ class Bot(AbstractBot):
 
         def __init__(self, func: Callable[[int, str, list, None], list], image_type: type,
                      api_methods: dict, rate_counter: Callable[[int], Awaitable[bool]], doc_type: type):
-            self._func = func
+            self.func = func
             self._imageType = image_type
             self._docType = doc_type
             self._apiMethods = api_methods
             self._rateCounter = rate_counter
             self._tagsFormatter = self.TagsFormatter()
-            self._funcParams = signature(self._func).parameters
+            self.funcParams = signature(self.func).parameters
 
         async def execute(self, event: BaseEvent) -> None:
-            vkMessage = event.object.object.message
-            if vkMessage.is_cropped:
-                if vkMessage.from_id != vkMessage.peer_id:
-                    await self._apiMethods['sendText'](vkMessage.peer_id,
-                                                       ['Твое сообщение слишком большое, попробуй написать мне в ЛС!'])
+            vk_message = event.object.object.message
+            if vk_message.is_cropped:
+                if vk_message.from_id != vk_message.peer_id:
+                    await event.api_ctx.messages.send(peer_id=vk_message.peer_id,
+                                                      message='Твое сообщение слишком большое, '
+                                                              'попробуй написать мне в ЛС!',
+                                                      random_id=0)
                     return None
-                vkMessage = (await self._apiMethods['getMessagesById']([vkMessage.id]))[0]
-            if not await self._rateCounter(vkMessage.from_id):
-                logger.debug(f"Oh shit, I'm sorry: {vkMessage.from_id} is banned.")
+                vk_message = (await event.api_ctx.messages.get_by_id(message_ids=[vk_message.id])).response.items[0]
+            if not await self._rateCounter(vk_message.from_id):
+                logger.debug(f"Oh shit, I'm sorry: {vk_message.from_id} is banned.")
                 return None
-            msg = vkMessage.text
-            if vkMessage.from_id != vkMessage.peer_id:
-                userId = vkMessage.from_id
+            msg = vk_message.text
+            if vk_message.from_id != vk_message.peer_id:
+                user_id = vk_message.from_id
                 msg = msg[1:]
             else:
-                userId = None
-            attachedPhotos = []
-            if 'attached_photos' in self._funcParams:
-                for attachment in vkMessage.attachments:
+                user_id = None
+            attached_photos = []
+            if 'attached_photos' in self.funcParams:
+                for attachment in vk_message.attachments:
                     if attachment.photo:
-                        attachedPhotos.append(attachment.photo.sizes[-1].url)
+                        attached_photos.append(attachment.photo.sizes[-1].url)
 
             fwd = []
-            fwdNames = []
-            fwdMsgs = []
+            fwd_names = []
+            fwd_msgs = []
 
             def unpackFwd(msgs):
                 for x in msgs:
-                    if x and x not in fwdMsgs:
+                    if x and x not in fwd_msgs:
                         if x.text:
                             fwd.append(x.text)
-                            fwdNames.append(x.from_id)
+                            fwd_names.append(x.from_id)
                         if x.fwd_messages:
                             unpackFwd(x.fwd_messages)
-                        if 'attached_photos' in self._funcParams:
+                        if 'attached_photos' in self.funcParams:
                             for _attachment in x.attachments:
                                 if _attachment.photo:
-                                    attachedPhotos.append(_attachment.photo.sizes[-1].url)
-                        fwdMsgs.append(x)
+                                    attached_photos.append(_attachment.photo.sizes[-1].url)
+                        fwd_msgs.append(x)
 
-            unpackFwd([vkMessage.reply_message] + vkMessage.fwd_messages)
+            unpackFwd([vk_message.reply_message] + vk_message.fwd_messages)
             if fwd:
                 msg = f'{msg} {"!@next!@".join(fwd)}'
 
             msg = self._tagsFormatter.format(msg)
-            funcArgs = {}
-            if '_id' in self._funcParams:
-                funcArgs.update({'_id': vkMessage.from_id})
-            if 'msg' in self._funcParams:
-                funcArgs.update({'msg': msg})
-            if 'fwd_names' in self._funcParams:
-                fwdNamesIds = [fwdNames[x] for x in range(len(fwdNames))]
+            func_args = {}
+            if '_id' in self.funcParams:
+                func_args.update({'_id': vk_message.from_id})
+            if 'msg' in self.funcParams:
+                func_args.update({'msg': msg})
+            if 'fwd_names' in self.funcParams:
+                fwd_names_ids = [fwd_names[x] for x in range(len(fwd_names))]
 
                 tmp = {}
                 [tmp.update({x.id: {'firstName': x.first_name, 'lastName': x.last_name}}) for x in
-                 (await self._apiMethods['getUsers'](fwdNames)).response]
-                for i in range(len(fwdNamesIds)):
-                    fwdNamesIds[i] = tmp[fwdNamesIds[i]]
-                funcArgs.update({'fwd_names': fwdNamesIds})
-            if 'attached_photos' in self._funcParams:
-                funcArgs.update({'attached_photos': attachedPhotos})
-            if 'attached_docs' in self._funcParams:
-                funcArgs.update({'attached_docs': [x.doc.url for x in vkMessage.attachments]})
+                 (await event.api_ctx.users.get(user_ids=fwd_names)).response]
+                for i in range(len(fwd_names_ids)):
+                    fwd_names_ids[i] = tmp[fwd_names_ids[i]]
+                func_args.update({'fwd_names': fwd_names_ids})
+            if 'attached_photos' in self.funcParams:
+                func_args.update({'attached_photos': attached_photos})
+            if 'attached_docs' in self.funcParams:
+                func_args.update({'attached_docs': [x.doc.url for x in vk_message.attachments]})
 
             async def postResult(r: list):
                 try:
                     for message in r:
                         if type(message) is self._imageType:
                             if message.url:
-                                await self._apiMethods['sendImagesFromURLs'](vkMessage.peer_id,
-                                                                             [message.url], userId)
+                                await self._apiMethods['sendImagesFromURLs'](vk_message.peer_id,
+                                                                             [message.url], user_id)
                             elif message.filepath:
-                                await self._apiMethods['sendImagesFromFiles'](vkMessage.peer_id,
-                                                                              [message.filepath], userId)
+                                await self._apiMethods['sendImagesFromFiles'](vk_message.peer_id,
+                                                                              [message.filepath], user_id)
                         elif type(message) is self._docType:
-                            await self._apiMethods['sendDocs'](vkMessage.from_id, [message.filepath])
+                            await self._apiMethods['sendDocs'](vk_message.from_id, [message.filepath])
                         elif type(message) is str:
-                            await self._apiMethods['sendText'](vkMessage.peer_id, [message])
+                            await event.api_ctx.messages.send(peer_id=vk_message.peer_id, message=message, random_id=0)
                 except APIError:
-                    await self._apiMethods['sendText'](vkMessage.peer_id,
-                                                       [('Начни переписку со мной, чтобы я мог отправлять тебе '
-                                                         'вложения. И желательно подпишись 😏')])
+                    await event.api_ctx.messages.send(
+                        peer_id=vk_message.peer_id, message='Начни переписку со мной, чтобы я мог отправлять тебе '
+                                                            'вложения. И желательно подпишись 😏', random_id=0
+                    )
 
             try:
-                if ('callback' and 'loop') in self._funcParams:
-                    funcArgs.update({'loop': loop, 'callback': postResult})
-                    self._func(**funcArgs)
+                if ('callback' and 'loop') in self.funcParams:
+                    func_args.update({'loop': loop, 'callback': postResult})
+                    self.func(**func_args)
                 else:
-                    await postResult(self._func(**funcArgs))
+                    await postResult(self.func(**func_args))
             except Exception as e:
                 logger.error(f'Unexcepted error while command execution: {e}\n{traceback.format_exc()}')
                 await postResult([('Произошла непредвиденная ошибка. Скорее всего это вызвано неправильным '
@@ -228,7 +220,7 @@ class Bot(AbstractBot):
                                    '[id560302519|разработчику бота]. Спасибо.')])
 
     async def _regHandler(self, h: _Callback) -> None:
-        eventTypeFilter = EventTypeFilter(BotEventType.MESSAGE_NEW)
+        event_type_filter = EventTypeFilter(BotEventType.MESSAGE_NEW)
 
         class TextFilter(BaseFilter):
             def __init__(self, _h):
@@ -256,18 +248,18 @@ class Bot(AbstractBot):
                         pass
                 return FilterResult(await self.h.filter(**func_arguments))
 
-        textFilter = TextFilter(h)
+        text_filter = TextFilter(h)
         handler = self._router.registrar.new()
-        handler.filters = [eventTypeFilter, textFilter]
-        hArgs = {}
-        hParams = signature(h).parameters
-        if 'img_search' in hParams:
-            hArgs.update({'img_search': self._imgSearch})
-        if 'db_connection' in hParams:
-            hArgs.update({'db_connection': self._dbConnection})
-        hI = h(**hArgs)
+        handler.filters = [event_type_filter, text_filter]
+        h_args = {}
+        h_params = signature(h).parameters
+        if 'img_search' in h_params:
+            h_args.update({'img_search': self._imgSearch})
+        if 'db_connection' in h_params:
+            h_args.update({'db_connection': self._dbConnection})
+        h_i = h(**h_args)
         h = self._Callback(
-            hI.run, self._Handler.Image, self._apiMethods, self._rateLimit.ratecounter, self._Handler.Doc
+            h_i.run, self._Handler.Image, self._apiMethods, self._rateLimit.ratecounter, self._Handler.Doc
         )
         handler.callback = h
         ready = handler.ready()

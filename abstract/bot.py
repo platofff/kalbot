@@ -9,13 +9,14 @@ from datetime import datetime
 from os.path import join
 from random import randint, choice
 from string import ascii_letters
-from typing import Awaitable, Callable, Optional, Union, Iterable, Tuple
+from typing import Awaitable, Callable, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import pymysql
 import requests
 import asyncio
-from PIL import UnidentifiedImageError
+
+from wand.exceptions import MissingDelegateError
 
 from images.demotivator import Demotivator
 from images.searchimages import ImgSearch
@@ -199,7 +200,7 @@ objectionconf - сохранить конкретных персонажей д�
                             msg[1]
                         )
                         break
-                    except (UnidentifiedImageError, HTTPError, URLError):
+                    except (HTTPError, URLError, MissingDelegateError):
                         links.pop(links.index(link))
                         if not links:
                             links = self._imgSearch.fetch("kernel panic")

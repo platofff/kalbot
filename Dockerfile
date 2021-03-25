@@ -10,10 +10,13 @@ RUN zypper ar -f https://download.opensuse.org/repositories/home:/wicked:/qubes-
  curl
 RUN curl -s https://bootstrap.pypa.io/get-pip.py | python3
 RUN zypper -n rm --clean-deps curl && zypper -n clean
-RUN python3 -m pip install vkwave requests wand pymysql PyYAML cachetools
-RUN groupadd -g 2000 app
-RUN useradd -u 2000 -m app -g app
+RUN python3 -m pip install pipenv
+RUN groupadd -g 2000 app &&\
+ useradd -u 2000 -m app -g app &&\
+ mkdir /home/app/.local &&\
+ chown -R app /home/app/.local
 
 USER app
 WORKDIR /home/app
-ENTRYPOINT ["python3", "/home/app/main.py"]
+RUN pipenv install
+ENTRYPOINT ["pipenv", "run", "python", "main.py"]

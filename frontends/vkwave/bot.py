@@ -5,7 +5,7 @@ import traceback
 from inspect import signature
 from os import environ, remove
 from sys import path
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Any
 
 import pymysql
 import yaml
@@ -48,13 +48,7 @@ class Bot(AbstractBot):
         await self._apiSession.get_context().messages.send(
             peer_id=user_id, attachment=attachment, random_id=0
         )
-    '''
-    async def _APIgetGroups(self, group_ids: list) -> dict:
-        return await self._apiSession.get_context().groups.get_by_id(group_ids=group_ids)
 
-    async def _APIgetMessagesById(self, messages_ids: list) -> list:
-        return (await self._apiSession.get_context().messages.get_by_id(message_ids=messages_ids)).response.items
-    '''
     def __init__(self, db_connection: pymysql.connections.Connection):
         AbstractBot.__init__(self, db_connection)
         if not ('VK_BOT_TOKEN' in environ):
@@ -219,7 +213,7 @@ class Bot(AbstractBot):
                                    'использованием одной из команд. Если это не так, то будь другом, напиши '
                                    '[id560302519|разработчику бота]. Спасибо.')])
 
-    async def _regHandler(self, h: _Callback) -> None:
+    async def _regHandler(self, h) -> None:
         event_type_filter = EventTypeFilter(BotEventType.MESSAGE_NEW)
 
         class TextFilter(BaseFilter):

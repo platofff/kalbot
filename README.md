@@ -27,10 +27,21 @@ VK_BOT_TOKEN=<токен доступа группы ВК>
 #### Запуск
 
 ##### Docker
+Собрать образ на базе OpenSUSE Tumbleweed (проверено на aarch64):
+```
+docker build -f Dockerfile.tumbleweed -t kalbot .
+```
+
+Собрать образ на базе OpenSUSE Leap 15.2 со сторонними репозиториями (работает только на x86_64):
 ```
 docker build -t kalbot .
+```
+
+Запуск:
+```
 docker run kalbot
 ```
+
 ##### Pipenv
 ```
 pipenv install

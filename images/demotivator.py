@@ -45,6 +45,7 @@ class Demotivator:
         r = request.urlopen(url).read()
         img = Image(blob=r)
         img.transform(resize='1500x1500>')
+        img.transform(resize='250x250<')
 
         dem1 = self._dem_text(img, text1, self.BIG_FONT_SIZE, 'serif')
         dem2 = self._dem_text(img, text2, self.SM_FONT_SIZE, 'sans')
@@ -54,12 +55,12 @@ class Demotivator:
                        background=Color('black'))
         img_left = floor(0.05 * img.width)
         img_top = floor(0.05 * img.width)
-        draw.stroke_width = ceil(img.width / 1000) * 4
-        half_stroke = floor(draw.stroke_width / 4)
-        draw.polygon([(img_left - half_stroke, img_top - half_stroke),
-                      (img_left + img.width, img_top - half_stroke),
-                      (img_left + img.width, img_top + img.height),
-                      (img_left - half_stroke, img_top + img.height)])  # Square polygon around image
+        draw.stroke_width = ceil(img.width / 500)
+        k = draw.stroke_width * 4
+        draw.polygon([(img_left - k, img_top - k),
+                      (img_left + img.width + k, img_top - k),
+                      (img_left + img.width + k, img_top + img.height + k),
+                      (img_left - k, img_top + img.height + k)])  # Square polygon around image
         draw(output)
         output.composite(image=img, left=img_left, top=img_top)
         img_height = floor(0.07 * img.width + img.height)

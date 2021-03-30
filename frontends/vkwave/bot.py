@@ -29,14 +29,14 @@ loop: asyncio.AbstractEventLoop
 class Bot(AbstractBot):
     _apiMethods: dict = {}
 
-    async def _APIsendImagesFromURLs(self, peer_id: int, urls: list, user_id=None) -> None:
-        attachment = await self._photoUploader.get_attachments_from_links(links=urls, peer_id=user_id)
+    async def _APIsendImagesFromURLs(self, peer_id: int, urls: list) -> None:
+        attachment = await self._photoUploader.get_attachments_from_links(links=urls, peer_id=0)
         await self._apiSession.get_context().messages.send(
             peer_id=peer_id, attachment=attachment, random_id=0
         )
 
-    async def _APIsendImagesFromFiles(self, peer_id: int, files: list, user_id=None) -> None:
-        attachment = await self._photoUploader.get_attachments_from_paths(file_paths=files, peer_id=user_id)
+    async def _APIsendImagesFromFiles(self, peer_id: int, files: list) -> None:
+        attachment = await self._photoUploader.get_attachments_from_paths(file_paths=files, peer_id=0)
         await self._apiSession.get_context().messages.send(
             peer_id=peer_id, attachment=attachment, random_id=0
         )
@@ -187,15 +187,16 @@ class Bot(AbstractBot):
                         if type(message) is self._imageType:
                             if message.url:
                                 await self._apiMethods['sendImagesFromURLs'](vk_message.peer_id,
-                                                                             [message.url], user_id)
+                                                                             [message.url])
                             elif message.filepath:
                                 await self._apiMethods['sendImagesFromFiles'](vk_message.peer_id,
-                                                                              [message.filepath], user_id)
+                                                                              [message.filepath])
                         elif type(message) is self._docType:
                             await self._apiMethods['sendDocs'](vk_message.from_id, [message.filepath])
                         elif type(message) is str:
                             await event.api_ctx.messages.send(peer_id=vk_message.peer_id, message=message, random_id=0)
-                except APIError:
+                except APIError as e:
+                    logger.error(e)
                     await event.api_ctx.messages.send(
                         peer_id=vk_message.peer_id, message='Начни переписку со мной, чтобы я мог отправлять тебе '
                                                             'вложения. И желательно подпишись 😏', random_id=0

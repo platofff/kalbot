@@ -1,4 +1,5 @@
 from datetime import datetime
+from sys import getsizeof
 
 
 class RateLimit:
@@ -14,13 +15,15 @@ class RateLimit:
                 break
 
     async def ratecounter(self, _id: int) -> bool:
+        async def clean():
+            if getsizeof(self._recent) > 1024:
+                await self._clean(now)
         now = datetime.now().timestamp()
-        clean = self._clean(now)
         if _id in self._recent.keys() and self._recent[_id] > now:
             self._recent[_id] += self.LIMIT_SEC
-            await clean
+            await clean()
             return False
         else:
             self._recent[_id] = now + self.LIMIT_SEC
-            await clean
+            await clean()
             return True

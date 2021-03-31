@@ -58,8 +58,8 @@ class Vasya:
             if dem:
                 break
             else:
-                links.pop(links.index(link))
                 try:
+                    links.pop(links.index(link))
                     link = links[randint(0, len(links) - 1)]
                 except ValueError:
                     while True:

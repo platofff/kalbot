@@ -7,7 +7,7 @@ from string import ascii_letters
 
 from vkwave.bots import SimpleLongPollBot, TaskManager, PhotoUploader
 from vkwave.bots.core.dispatching.filters import get_text
-from vkwave.types.objects import MessagesMessageAttachmentType, PhotosPhotoSizesType
+from vkwave.types.objects import MessagesMessageAttachmentType, PhotosPhotoSizesType, MessagesForeignMessage
 
 from abstract.demotivator import Demotivator
 from abstract.searchimages import ImgSearch
@@ -53,37 +53,42 @@ def create_demotivator(args: list, url: str = None):
                 continue
 
 
-async def get_photo_url(event: bot.SimpleBotEvent):
+async def get_photo_url(message: MessagesForeignMessage):
     url = None
-    if event.object.object.message.attachments[0].type == MessagesMessageAttachmentType.PHOTO:
+    if message.attachments[0].type == MessagesMessageAttachmentType.PHOTO:
         # If possible get proportional image
-        for size in reversed(event.object.object.message.attachments[0].photo.sizes):
+        for size in reversed(message.attachments[0].photo.sizes):
             if size.type not in (PhotosPhotoSizesType.R, PhotosPhotoSizesType.Q, PhotosPhotoSizesType.P,
                                  PhotosPhotoSizesType.O):
                 url = size.url
                 break
         if not url:
-            url = event.object.object.message.attachments[0].photo.sizes[-1].url
+            url = message.attachments[0].photo.sizes[-1].url
     return url
 
 
-async def unpack_fwd(event: bot.SimpleBotEvent):
+async def unpack_fwd(event: bot.SimpleBotEvent, photos_count: int = 1):
     fwd = []
     fwd_names = []
     fwd_msgs = []
+    fwd_photos = []
 
-    def unpackFwd(msgs):
+    async def unpackFwd(msgs):
         for x in msgs:
             if x and x.conversation_message_id not in fwd_msgs:
                 if x.text:
                     fwd.append(x.text)
                     fwd_names.append(x.from_id)
                 if x.fwd_messages:
-                    unpackFwd(x.fwd_messages)
+                    await unpackFwd(x.fwd_messages)
+                if x.attachments and len(fwd_photos) < photos_count:
+                    photo = await get_photo_url(x)
+                    if photo:
+                        fwd_photos.append(photo)
                 fwd_msgs.append(x.conversation_message_id)
 
-    unpackFwd([event.object.object.message.reply_message] + event.object.object.message.fwd_messages)
-    return '\n'.join(fwd)
+    await unpackFwd([event.object.object.message.reply_message] + event.object.object.message.fwd_messages)
+    return '\n'.join(fwd), fwd_photos
 
 
 @bot.message_handler(bot.command_filter(commands=['демотиватор', 'demotivator']))
@@ -94,7 +99,7 @@ async def demotivator_handler(event: bot.SimpleBotEvent):
         return
     args = get_text(event).replace('/demotivator', '', 1).replace('/демотиватор', '', 1).rstrip(' ')
 
-    fwd = await unpack_fwd(event)
+    fwd, fwd_photos = await unpack_fwd(event)
 
     if not args and not fwd:
         result = await vasya_caching.getDemotivator()
@@ -104,10 +109,10 @@ async def demotivator_handler(event: bot.SimpleBotEvent):
         elif fwd and not args:
             args = fwd
         args = TagsFormatter.format(args)
-        try:
-            url = await get_photo_url(event)
-        except IndexError:
-            url = None
+        if event.object.object.message.attachments:
+            url = await get_photo_url(event.object.object.message)
+        elif fwd_photos:
+            url = fwd_photos[0]
 
         result = await task_manager.loop.run_in_executor(pool, create_demotivator, args.splitlines(), url)
 

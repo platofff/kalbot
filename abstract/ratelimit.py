@@ -6,9 +6,12 @@ class RateLimit:
     LIMIT_SEC = 5
 
     async def _clean(self, now: float):
-        for user in self._recent.keys():
-            if self._recent[user] < now:
-                self._recent.pop(user)
+        for user in list(self._recent):
+            try:
+                if self._recent[user] < now:
+                    self._recent.pop(user)
+            except KeyError:
+                break
 
     async def ratecounter(self, _id: int) -> bool:
         now = datetime.now().timestamp()

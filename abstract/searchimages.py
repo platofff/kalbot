@@ -2,6 +2,7 @@ import json
 import logging
 import operator
 import re
+from typing import List
 from urllib import request, parse as urllib_parse
 from cachetools import LFUCache, cachedmethod
 
@@ -27,20 +28,20 @@ class ImgSearch:
         }
 
     @classmethod
-    def _getImages(cls, objects: dict):
+    def _getImages(cls, objs: dict):
         images = []
-        for obj in objects:
+        for obj in objs:
             if obj["image"].endswith(('.gif', '.jpg', '.png', '.jpeg')):
                 images.append(obj["image"])
         return images
 
     @cachedmethod(operator.attrgetter('_cache'))
-    def fetch(self, keywords):
+    def search(self, keywords: str) -> List[str]:
         params = {
             'q': keywords,
             't': 'ht',
-            'iax': 'images',
-            'ia': 'images'
+            'iax': 'abstract',
+            'ia': 'abstract'
         }
         logger.debug("Hitting DuckDuckGo for Token")
 
@@ -52,9 +53,9 @@ class ImgSearch:
             )
         ).read().decode('utf-8')
 
-        searchObj = re.search(r'vqd=([\d-]+)\&', res, re.M | re.I)
+        search_obj = re.search(r'vqd=([\d-]+)\&', res, re.M | re.I)
 
-        if not searchObj:
+        if not search_obj:
             logger.debug("Token Parsing Failed !")
             return []
 
@@ -64,7 +65,7 @@ class ImgSearch:
             'l': 'us-en',
             'o': 'json',
             'q': keywords,
-            'vqd': searchObj.group(1),
+            'vqd': search_obj.group(1),
             'f': ',,,',
             'p': '1',
             'v7exp': 'a',

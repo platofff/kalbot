@@ -5,11 +5,8 @@ name = "pypi"
 
 [packages]
 wand = ">=0.6.6,<1.0"
-pyyaml = ">=5.4.1,<6.0"
 vkwave = ">=0.2.10,<1.0"
-requests = ">=2.25.1,<3.0"
 cachetools = ">=4.2.1,<5.0"
-PyMySQL = ">=1.0.2,<2.0"
 
 [dev-packages]
 

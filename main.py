@@ -1,5 +1,4 @@
 import base64
-import re
 from concurrent.futures.process import ProcessPoolExecutor
 from os import environ
 import logging
@@ -12,6 +11,7 @@ from vkwave.types.objects import MessagesMessageAttachmentType, PhotosPhotoSizes
 
 from abstract.demotivator import Demotivator
 from abstract.searchimages import ImgSearch
+from abstract.tagsformatter import TagsFormatter
 from abstract.vasyacache import Vasya
 from abstract.ratelimit import RateLimit
 
@@ -84,16 +84,6 @@ async def unpack_fwd(event: bot.SimpleBotEvent):
 
     unpackFwd([event.object.object.message.reply_message] + event.object.object.message.fwd_messages)
     return '\n'.join(fwd)
-
-
-class TagsFormatter:
-    @classmethod
-    def _get(cls, match: re.Match) -> str:
-        return re.sub(r'\[.*\|', '', match.group(0))[:-1]
-
-    @classmethod
-    def format(cls, msg: str) -> str:
-        return re.sub(r'\[.*?\|.*?\]', cls._get, msg)
 
 
 @bot.message_handler(bot.command_filter(commands=['демотиватор', 'demotivator']))

@@ -7,6 +7,7 @@ from random import randint, choice
 
 from abstract.demotivator import Demotivator
 from abstract.searchimages import ImgSearch
+from abstract.tagsformatter import TagsFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,8 @@ class Vasya:
     async def _getDemotivator(self) -> None:
         async def get_links():
             msg0, msg1 = choice(list(self._v.items()))
-            msg1 = ' '.join(msg1)
+            msg1 = TagsFormatter.format(' '.join(msg1))
+            msg0 = TagsFormatter.format(msg0)
             query = msg0
             links = await self._loop.run_in_executor(self._pool, self._i.search, query)
             return msg0, msg1, query, links

@@ -109,7 +109,7 @@ async def demotivator_handler(event: bot.SimpleBotEvent):
     else:
         if fwd and args:
             args += f'\n{fwd}'
-        else:
+        elif fwd:
             args = fwd
         args = TagsFormatter.format(args)
         try:

@@ -28,7 +28,9 @@ rate_limit = RateLimit()
 
 @bot.message_handler(bot.command_filter(commands=['начать', 'start', 'команды', 'commands', 'помощь', 'help']))
 async def start_handler(event: bot.SimpleBotEvent):
-    await event.answer('todo')
+    await event.answer('''Команды:
+/демотиватор - сгенерировать демотиватор со своей картинкой или из интернета. При вызове без аргументов текст берётся из БД Васи Машинки https://vk.com/vasyamashinka
+/оптимизация - сгенерировать скрипт оптимизации Ubuntu''')
 
 
 def create_demotivator(args: list, url: str = None):

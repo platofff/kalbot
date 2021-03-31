@@ -109,6 +109,7 @@ async def demotivator_handler(event: bot.SimpleBotEvent):
         elif fwd and not args:
             args = fwd
         args = TagsFormatter.format(args)
+        url = None
         if event.object.object.message.attachments:
             url = await get_photo_url(event.object.object.message)
         elif fwd_photos:

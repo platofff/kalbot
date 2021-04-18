@@ -150,9 +150,9 @@ async def demotivator_handler(message: Message, text: Optional[str] = None):
 @bot.on.message(text=['/nouveau', '/нуву', '/ноувеау'])
 async def nouveau_handler(message: Message):
     if not message.attachments:
+        _, photos, _ = await unpack_fwd(message)
         try:
-            _, photos, _ = await unpack_fwd(message)
-            photo = photos[0]
+            photo = list(photos.values())[0][0]
         except IndexError:
             await message.answer('Прикрепи или перешли изображение.')
             return

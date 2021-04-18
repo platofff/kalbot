@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  kalbot:
+    build: .
+    volumes_from:
+    - redis
+    environment:
+      REDIS_URI: unix:///tmp/redis.sock
+      VK_BOT_TOKEN: ${VK_BOT_TOKEN}
+  redis:
+    image: redis:5-alpine
+    command: redis-server --unixsocket /tmp/redis.sock --unixsocketperm 777
+    volumes:
+    - /tmp

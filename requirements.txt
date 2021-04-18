@@ -1,0 +1,6 @@
+wand>=0.6.6,<1.0
+https://github.com/timoniq/vkbottle/archive/cd93ac92675c25a883f3a283a870d35323aafcc1.tar.gz
+aiofiles>=0.6.0,<1.0
+cachetools>=4.2.1,<5.0
+aioredis>=1.3.1,<2.0
+

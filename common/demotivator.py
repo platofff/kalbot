@@ -26,7 +26,7 @@ class Demotivator:
 
     @classmethod
     def _dem_text(cls, img: Image, txt: str, font_k: float, font: str) -> Image:
-        dem = Image(height=1000, width=floor(img.width * 1.1))
+        dem = Image(width=floor(img.width * 1.1), height=1000)
         dem.options['pango:align'] = 'center'
         dem.options['pango:wrap'] = 'word'
         dem.options['pango:single-paragraph'] = 'true'

@@ -40,8 +40,8 @@ class ImgSearch:
         params = {
             'q': keywords,
             't': 'ht',
-            'iax': 'abstract',
-            'ia': 'abstract'
+            'iax': 'common',
+            'ia': 'common'
         }
         logger.debug("Hitting DuckDuckGo for Token")
 

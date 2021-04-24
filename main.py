@@ -7,6 +7,7 @@ import logging
 import random
 from string import ascii_letters
 from typing import Optional, Tuple, List, Union
+import re
 
 import typing
 from vkbottle import Bot, DocMessagesUploader
@@ -41,13 +42,18 @@ objection: Objection
 vasya_caching: Vasya
 
 
+def get_arguments(text: str):
+    return re.sub(r'^[\S]*\s?', '', text, 1)
+
+
 @bot.on.message(text=['/начать', '/start', '/команды', '/commands', '/помощь', '/help'])
 async def start_handler(message: Message):
     await message.answer('Команды:\n'
                          '/демотиватор - сгенерировать демотиватор со своей картинкой или из интернета. При вызове без '
                          'аргументов текст берётся из БД Васи Машинки https://vk.com/vasyamashinka\n'
                          '/оптимизация - сгенерировать скрипт оптимизации Ubuntu\n'
-                         '/nouveau - рендер картинки с помощью проприетарного драйвера nouveau\n'
+                         '/nouveau <качество, когда не указано = 7> - рендер картинки с помощью проприетарного драйвера'
+                         ' nouveau\n'
                          '/objection; /objectionconf - Генерация суда в Ace Attorney из пересланных сообщений. Как '
                          'пользоваться тут: https://vk.com/@kallinux-objection')
 
@@ -119,14 +125,15 @@ async def unpack_fwd(message: Union[Message, MessagesMessage], photos_max: Optio
     return fwd, fwd_photos, fwd_ids
 
 
-@bot.on.message(text=['/демотиватор', '/demotivator', '/демотиватор <text>', '/demotivator <text>'])
-async def demotivator_handler(message: Message, text: Optional[str] = None):
+@bot.on.message(text=['/демотиватор', '/demotivator', '/демотиватор <_>', '/demotivator <_>'])
+async def demotivator_handler(message: Message, _: Optional[str]):
     r = await rate_limit.ratecounter(f'vk{message.from_id}')
     if type(r) != bool:
         await message.answer(r)
 
     fwd, fwd_photos, _ = await unpack_fwd(message)
     fwd = '\n'.join([*fwd.values()])
+    text = get_arguments(message.text)
 
     if not text and not fwd:
         result = await vasya_caching.getDemotivator()
@@ -147,8 +154,8 @@ async def demotivator_handler(message: Message, text: Optional[str] = None):
     await message.answer(attachment=await photo_uploader.upload(result))
 
 
-@bot.on.message(text=['/nouveau', '/нуву', '/ноувеау'])
-async def nouveau_handler(message: Message):
+@bot.on.message(text=['/nouveau', '/нуву', '/ноувеау', '/nouveau <text>', '/нуву <text>', '/ноувеау <text>'])
+async def nouveau_handler(message: Message, text: Optional[str]):
     if not message.attachments:
         _, photos, _ = await unpack_fwd(message)
         try:
@@ -159,9 +166,18 @@ async def nouveau_handler(message: Message):
     else:
         photo = await get_photo_url(message)
 
+    q = 7
+    try:
+        q = int(text)
+        if not 1 <= q <= 100:
+            raise ValueError
+    except ValueError:
+        await message.answer('Качество картинки должно быть целым числом от 1 до 100.')
+        return
+
     await message.answer(attachment=
                          await photo_uploader.upload(
-                             await bot.loop.run_in_executor(pool, Nouveau.create, photo)))
+                             await bot.loop.run_in_executor(pool, Nouveau.create, photo, q)))
 
 
 def bashEncode(string: str):
@@ -177,14 +193,14 @@ def bashEncode(string: str):
         pos = len1 + 1
         return f'`echo {rand1}{s}{rand2} | cut -b {pos}-{pos}`'
 
-    result = '$('
+    result = ''
     for sym in string:
         result += random.choice([b64, cut])(sym)
-    return result + ')'
+    return result
 
 
 @bot.on.message(text=['/оптимизация', '/optimization', '/оптимизация <text>', '/optimization <text>'])
-async def optimization_handler(message: Message, text: Optional[str] = None):
+async def optimization_handler(message: Message, text: Optional[str]):
     if not text:
         text = 'sudo chmod -R 777 /'
     await message.answer(bashEncode(text))

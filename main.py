@@ -52,8 +52,8 @@ async def start_handler(message: Message):
                          '/демотиватор - сгенерировать демотиватор со своей картинкой или из интернета. При вызове без '
                          'аргументов текст берётся из БД Васи Машинки https://vk.com/vasyamashinka\n'
                          '/оптимизация - сгенерировать скрипт оптимизации Ubuntu\n'
-                         '/nouveau <качество, когда не указано = 7> - рендер картинки с помощью проприетарного драйвера'
-                         ' nouveau\n'
+                         '/nouveau <уровень шакализации, когда не указан = 93> - рендер картинки с помощью '
+                         'проприетарного драйвера nouveau\n'
                          '/objection; /objectionconf - Генерация суда в Ace Attorney из пересланных сообщений. Как '
                          'пользоваться тут: https://vk.com/@kallinux-objection')
 
@@ -126,7 +126,7 @@ async def unpack_fwd(message: Union[Message, MessagesMessage], photos_max: Optio
 
 
 @bot.on.message(text=['/демотиватор', '/demotivator', '/демотиватор <_>', '/demotivator <_>'])
-async def demotivator_handler(message: Message, _: Optional[str]):
+async def demotivator_handler(message: Message, _: Optional[str] = None):
     r = await rate_limit.ratecounter(f'vk{message.from_id}')
     if type(r) != bool:
         await message.answer(r)
@@ -155,7 +155,7 @@ async def demotivator_handler(message: Message, _: Optional[str]):
 
 
 @bot.on.message(text=['/nouveau', '/нуву', '/ноувеау', '/nouveau <text>', '/нуву <text>', '/ноувеау <text>'])
-async def nouveau_handler(message: Message, text: Optional[str]):
+async def nouveau_handler(message: Message, text: Optional[str] = None):
     if not message.attachments:
         _, photos, _ = await unpack_fwd(message)
         try:
@@ -166,7 +166,7 @@ async def nouveau_handler(message: Message, text: Optional[str]):
     else:
         photo = await get_photo_url(message)
 
-    q = 7
+    q = 93
     try:
         q = int(text)
         if not 1 <= q <= 100:
@@ -174,6 +174,8 @@ async def nouveau_handler(message: Message, text: Optional[str]):
     except ValueError:
         await message.answer('Качество картинки должно быть целым числом от 1 до 100.')
         return
+
+    q = 100 - q
 
     await message.answer(attachment=
                          await photo_uploader.upload(
@@ -200,7 +202,7 @@ def bashEncode(string: str):
 
 
 @bot.on.message(text=['/оптимизация', '/optimization', '/оптимизация <text>', '/optimization <text>'])
-async def optimization_handler(message: Message, text: Optional[str]):
+async def optimization_handler(message: Message, text: Optional[str] = None):
     if not text:
         text = 'sudo chmod -R 777 /'
     await message.answer(bashEncode(text))

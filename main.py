@@ -154,7 +154,7 @@ async def demotivator_handler(message: Message, _: Optional[str] = None):
     await message.answer(attachment=await photo_uploader.upload(result))
 
 
-@bot.on.message(text=['/nouveau', '/нуву', '/ноувеау', '/nouveau <text>', '/нуву <text>', '/ноувеау <text>'])
+@bot.on.message(text=['/nouveau', '/нуво', '/ноувеау', '/nouveau <text>', '/нуво <text>', '/ноувеау <text>'])
 async def nouveau_handler(message: Message, text: Optional[str] = None):
     if not message.attachments:
         _, photos, _ = await unpack_fwd(message)

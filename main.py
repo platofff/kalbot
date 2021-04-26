@@ -166,16 +166,17 @@ async def nouveau_handler(message: Message, text: Optional[str] = None):
     else:
         photo = await get_photo_url(message)
 
-    q = 93
     try:
         q = int(text)
         if not 1 <= q <= 100:
             raise ValueError
-    except (ValueError, TypeError):
+    except ValueError:
         await message.answer('Качество картинки должно быть целым числом от 1 до 100.')
         return
+    except TypeError: # text == None
+        q = 93
 
-    q = 100 - q
+    q = 101 - q
 
     await message.answer(attachment=
                          await photo_uploader.upload(

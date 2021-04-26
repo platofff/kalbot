@@ -13,3 +13,7 @@ services:
     command: redis-server --unixsocket /tmp/redis.sock --unixsocketperm 777
     volumes:
     - /tmp
+    - redis-data:/data
+
+volumes:
+  redis-data:

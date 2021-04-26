@@ -171,7 +171,7 @@ async def nouveau_handler(message: Message, text: Optional[str] = None):
         q = int(text)
         if not 1 <= q <= 100:
             raise ValueError
-    except ValueError:
+    except (ValueError, TypeError):
         await message.answer('Качество картинки должно быть целым числом от 1 до 100.')
         return
 

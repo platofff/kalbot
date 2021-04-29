@@ -113,7 +113,7 @@ def create_demotivator(args: list, url: Optional[str] = None) -> bytes:
 
     def kernel_panic():
         _search_results = img_search.search('kernel panic')
-        return _search_results, random.choice(search_results)
+        return _search_results, random.choice(_search_results)
 
     if not url:
         search_results = img_search.search(args[0])

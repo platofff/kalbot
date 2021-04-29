@@ -2,8 +2,11 @@ import json
 import logging
 import operator
 import re
+from time import sleep
 from typing import List
 from urllib import request, parse as urllib_parse
+from urllib.error import HTTPError
+
 from cachetools import LFUCache, cachedmethod
 
 logger = logging.getLogger(__name__)
@@ -73,13 +76,20 @@ class ImgSearch:
 
         logger.debug("Hitting Url : %s", self._requestUrl)
 
-        data = json.loads(
-            request.urlopen(
-                request.Request(
-                    f'{self._requestUrl}?{urllib_parse.urlencode(params).encode()}',
-                    headers=self._headers)
-            ).read().decode('utf-8')
-        )
+        while True:
+            try:
+                data = json.loads(
+                    request.urlopen(
+                        request.Request(
+                            f'{self._requestUrl}?{urllib_parse.urlencode(params).encode()}',
+                            headers=self._headers)
+                    ).read().decode('utf-8')
+                )
+            except HTTPError:
+                sleep(5)
+                continue
+            finally:
+                break
 
         logger.debug("Hitting Url Success : %s", self._requestUrl)
         return self._getImages(data["results"])

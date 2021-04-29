@@ -10,7 +10,7 @@ services:
       VK_BOT_TOKEN: ${VK_BOT_TOKEN}
   redis:
     image: redis:5-alpine
-    command: redis-server --unixsocket /tmp/redis.sock --unixsocketperm 777
+    command: redis-server --unixsocket /tmp/redis.sock --unixsocketperm 777 --appendonly yes
     volumes:
     - /tmp
     - redis-data:/data

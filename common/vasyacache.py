@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from asyncio import Condition, AbstractEventLoop
+from asyncio import Condition, AbstractEventLoop, get_running_loop
 from concurrent.futures.process import ProcessPoolExecutor
 from random import randint
 
@@ -28,10 +28,10 @@ class Vasya:
     @classmethod
     async def new(cls, demotivator: Demotivator,
                   img_search: ImgSearch,
-                  loop: AbstractEventLoop,
                   pool: ProcessPoolExecutor,
                   redis_uri: str):
         self = Vasya()
+        self._loop = get_running_loop()
         self._db = await aioredis.create_redis_pool(redis_uri, db=1)
         if not await self._db.exists('vasya'):
             logger.info('Loading Vasya DB to Redis...')
@@ -45,7 +45,6 @@ class Vasya:
 
         self._d = demotivator
         self._i = img_search
-        self._loop = loop
         self._pool = pool
         self.cv = Condition()
         return self
@@ -53,10 +52,10 @@ class Vasya:
     async def run(self) -> None:
         while True:
             if len(self._demCache) < self.cacheSize:
-                await self._getDemotivator()
+                await self._get_demotivator()
             await asyncio.sleep(1)
 
-    async def _getDemotivator(self) -> None:
+    async def _get_demotivator(self) -> None:
         async def get_links():
             msg = json.loads(await self._db.srandmember('vasya'))
             msg0 = list(msg.keys())[0]
@@ -75,8 +74,7 @@ class Vasya:
                                                    self._d.create,
                                                    link,
                                                    msg0,
-                                                   msg1.splitlines(),
-                                                   f'demotivator{len(self._demCache)}.png')
+                                                   msg1.splitlines())
             if dem:
                 break
             else:
@@ -94,7 +92,7 @@ class Vasya:
             self.cv.notify()
         logger.debug(f'There are {len(self._demCache)} of {self.cacheSize} images in demotivators cache now.')
 
-    async def getDemotivator(self) -> str:
+    async def get_demotivator(self) -> bytes:
         async with self.cv:
             while not self._demCache:
                 await self.cv.wait()

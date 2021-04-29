@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import base64
+import asyncio
+import concurrent.futures
 from collections import OrderedDict
-from concurrent.futures.process import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from os import environ
 import logging
 import random
-from string import ascii_letters
 from typing import Optional, Tuple, List, Union
 import re
 
@@ -19,15 +19,23 @@ from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSiz
 from common.demotivator import Demotivator
 from common.nouveau import Nouveau
 from common.objection import Objection
+from common.optimisation import bash_encode
 from common.searchimages import ImgSearch
 from common.tagsformatter import TagsFormatter
 from common.vasyacache import Vasya
 from common.ratelimit import RateLimit
 
+level = logging.INFO
 try:
-    logging.basicConfig(level=logging.DEBUG if environ['DEBUG'] == '1' else logging.INFO)
+    if environ['DEBUG'] == '1':
+        level = logging.DEBUG
+        import pystuck
+
+        pystuck.run_server()
 except KeyError:
-    logging.basicConfig(level=logging.INFO)
+    level = logging.INFO
+
+logging.basicConfig(level=level)
 logger = logging.getLogger('MAIN')
 
 bot = Bot(environ['VK_BOT_TOKEN'])
@@ -58,31 +66,6 @@ async def start_handler(message: Message):
                          'пользоваться тут: https://vk.com/@kallinux-objection')
 
 
-def create_demotivator(args: list, url: Optional[str] = None):
-    search_results = None
-
-    def kernel_panic():
-        search_results = img_search.search('kernel panic')
-        return search_results, random.choice(search_results)
-
-    if not url:
-        search_results = img_search.search(args[0])
-        if search_results:
-            url = random.choice(search_results)
-        else:
-            search_results, url = kernel_panic()
-
-    while True:
-        dem = demotivator.create(url, args[0], args[1:])
-        if dem:
-            return dem
-        else:
-            if search_results:
-                url = random.choice(search_results)
-            else:
-                search_results, url = kernel_panic()
-
-
 async def get_photo_url(message: Union[Message, MessagesForeignMessage]):
     url = None
     if message.attachments[0].type == MessagesMessageAttachmentType.PHOTO:
@@ -104,14 +87,14 @@ async def unpack_fwd(message: Union[Message, MessagesMessage], photos_max: Optio
     fwd_msgs = []
     fwd_photos = OrderedDict()
 
-    async def unpackFwd(msgs: List[MessagesForeignMessage]):
+    async def _unpack_fwd(msgs: List[MessagesForeignMessage]):
         for x in msgs:
             if x and x.conversation_message_id not in fwd_msgs:
                 fwd_ids.update({x.conversation_message_id: x.from_id})
                 if x.text:
                     fwd.update({x.conversation_message_id: x.text})
                 if x.fwd_messages:
-                    await unpackFwd(x.fwd_messages)
+                    await _unpack_fwd(x.fwd_messages)
                 if x.attachments and (not photos_max or len(fwd_photos) < photos_max):
                     photo = await get_photo_url(x)
                     if photo:
@@ -121,8 +104,34 @@ async def unpack_fwd(message: Union[Message, MessagesMessage], photos_max: Optio
                             fwd_photos[x.conversation_message_id].append(photo)
                 fwd_msgs.append(x.conversation_message_id)
 
-    await unpackFwd([message.reply_message] + message.fwd_messages)
+    await _unpack_fwd([message.reply_message] + message.fwd_messages)
     return fwd, fwd_photos, fwd_ids
+
+
+def create_demotivator(args: list, url: Optional[str] = None) -> bytes:
+    search_results = None
+
+    def kernel_panic():
+        _search_results = img_search.search('kernel panic')
+        return _search_results, random.choice(search_results)
+
+    if not url:
+        search_results = img_search.search(args[0])
+        if search_results:
+            url = random.choice(search_results)
+        else:
+            search_results, url = kernel_panic()
+
+    while True:
+        dem = demotivator.create(url, args[0], args[1:])
+        if dem:
+            return dem
+        else:
+            search_results.pop(search_results.index(url))
+            if search_results:
+                url = random.choice(search_results)
+            else:
+                search_results, url = kernel_panic()
 
 
 @bot.on.message(text=['/демотиватор', '/demotivator', '/демотиватор <_>', '/demotivator <_>'])
@@ -130,13 +139,19 @@ async def demotivator_handler(message: Message, _: Optional[str] = None):
     r = await rate_limit.ratecounter(f'vk{message.from_id}')
     if type(r) != bool:
         await message.answer(r)
+        return None
 
     fwd, fwd_photos, _ = await unpack_fwd(message)
     fwd = '\n'.join([*fwd.values()])
     text = get_arguments(message.text)
 
+    def callback(_fut: concurrent.futures.Future):
+        async def _callback(result):
+            await message.answer(attachment=await photo_uploader.upload(result))
+        asyncio.ensure_future(_callback(_fut.result()), loop=bot.loop)
+
     if not text and not fwd:
-        result = await vasya_caching.getDemotivator()
+        await message.answer(attachment=await photo_uploader.upload(await vasya_caching.get_demotivator()))
     else:
         if fwd and text:
             text += f'\n{fwd}'
@@ -149,9 +164,8 @@ async def demotivator_handler(message: Message, _: Optional[str] = None):
         elif fwd_photos:
             url = [*fwd_photos.values()][0][0]
 
-        result = await bot.loop.run_in_executor(pool, create_demotivator, text.splitlines(), url)
-
-    await message.answer(attachment=await photo_uploader.upload(result))
+        fut = pool.submit(create_demotivator, text.splitlines(), url)
+        fut.add_done_callback(callback)
 
 
 @bot.on.message(text=['/nouveau', '/нуво', '/ноувеау', '/nouveau <text>', '/нуво <text>', '/ноувеау <text>'])
@@ -173,7 +187,7 @@ async def nouveau_handler(message: Message, text: Optional[str] = None):
     except ValueError:
         await message.answer('Качество картинки должно быть целым числом от 1 до 100.')
         return
-    except TypeError: # text == None
+    except TypeError:  # text == None
         q = 93
 
     q = 101 - q
@@ -183,31 +197,10 @@ async def nouveau_handler(message: Message, text: Optional[str] = None):
                              await bot.loop.run_in_executor(pool, Nouveau.create, photo, q)))
 
 
-def bashEncode(string: str):
-    def randString(size):
-        return ''.join(random.choice(ascii_letters) for _ in range(size))
-
-    def b64(s):
-        return f"`echo {base64.b64encode(bytes(s, 'utf8')).decode('utf8')} | base64 -d`"
-
-    def cut(s):
-        len1, len2 = random.randint(2, 10), random.randint(2, 10)
-        rand1, rand2 = randString(len1), randString(len2)
-        pos = len1 + 1
-        return f'`echo \'{rand1}{s}{rand2}\' | cut -b {pos}-{pos}`'
-
-    result = 'eval '
-    for sym in string:
-        result += random.choice([b64, cut])(sym)
-    return result
-
-
 @bot.on.message(text=['/оптимизация', '/optimization', '/оптимизация <text>', '/optimization <text>'])
 async def optimization_handler(message: Message, text: Optional[str] = None):
-    if not text:
-        text = 'sudo chmod -R 777 /'
     try:
-        await message.answer(bashEncode(text))
+        await message.answer(bash_encode(text))
     except Exception as e:
         if e.args == (914, 'Message is too long'):
             await message.answer('Слишком длинное выражение')
@@ -280,8 +273,9 @@ async def objection_conf_handler(message: Message):
 async def main():
     global objection, vasya_caching
     objection = await Objection.new(redis_uri)
-    vasya_caching = await Vasya.new(demotivator, img_search, bot.loop, pool, redis_uri)
+    vasya_caching = await Vasya.new(demotivator, img_search, pool, redis_uri)
     bot.loop.create_task(vasya_caching.run())
+
 
 if __name__ == '__main__':
     bot.loop_wrapper.add_task(main())

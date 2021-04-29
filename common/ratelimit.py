@@ -1,4 +1,5 @@
 from datetime import datetime
+from math import ceil
 from sys import getsizeof
 from typing import Union
 
@@ -23,10 +24,9 @@ class RateLimit:
                 await self._clean(now)
         now = datetime.now().timestamp()
         if _id in self._recent.keys() and self._recent[_id] > now:
-            if self._recent[_id] - now <= 5:
-                self._recent[_id] += self._limit_sec
+            self._recent[_id] += self._limit_sec
             await clean()
-            return f'Не так быстро! Жди {self._recent[_id] - now} секунд.'
+            return f'Не так быстро! Жди {ceil(self._recent[_id] - now)} секунд.'
         else:
             self._recent[_id] = now + self._limit_sec
             await clean()

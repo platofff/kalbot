@@ -3,6 +3,7 @@ from tempfile import gettempdir
 from math import floor, ceil
 from random import choice
 from string import ascii_letters
+from typing import Union
 from urllib import request
 from urllib.error import HTTPError, URLError
 
@@ -16,13 +17,6 @@ from wand.image import Image
 class Demotivator:
     BIG_FONT_SIZE = 0.052
     SM_FONT_SIZE = 0.036
-
-    @classmethod
-    def _get_name(cls) -> str:
-        while True:
-            name = ''.join([choice(ascii_letters) for _ in range(4)]) + '.png'
-            if not os.path.exists(os.path.join(gettempdir(), name)):
-                return name
 
     @classmethod
     def _dem_text(cls, img: Image, txt: str, font_k: float, font: str) -> Image:
@@ -39,16 +33,14 @@ class Demotivator:
         dem.trim(color=Color('black'))
         return dem
 
-    def create(self, url: str, text1: str, text2: list, name: str = None) -> str:
-        if not name:
-            name = self._get_name()
+    def create(self, url: str, text1: str, text2: list) -> Union[bytes, None]:
         draw = Drawing()
         draw.stroke_color = Color('white')
         try:
-            r = request.urlopen(url).read()
+            r = request.urlopen(url, timeout=3).read()
             img = Image(blob=r)
         except (HTTPError, URLError, MissingDelegateError):
-            return ''
+            return None
         img.transform(resize='1500x1500>')
         img.transform(resize='300x300<')
 
@@ -74,6 +66,5 @@ class Demotivator:
         for dem in dem2:
             output.composite(image=dem, left=0, top=h)
             h += dem.height
-        f_path = os.path.join(gettempdir(), name)
-        output.save(filename=f_path)
-        return f_path
+        output.format = 'jpeg'
+        return output.make_blob()

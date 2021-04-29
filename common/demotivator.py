@@ -1,8 +1,5 @@
-import os
-from tempfile import gettempdir
+from http.client import RemoteDisconnected
 from math import floor, ceil
-from random import choice
-from string import ascii_letters
 from typing import Union
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -39,7 +36,7 @@ class Demotivator:
         try:
             r = request.urlopen(url, timeout=3).read()
             img = Image(blob=r)
-        except (HTTPError, URLError, MissingDelegateError):
+        except (HTTPError, URLError, MissingDelegateError, RemoteDisconnected):
             return None
         img.transform(resize='1500x1500>')
         img.transform(resize='300x300<')

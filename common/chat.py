@@ -48,9 +48,9 @@ class Chat:
         if user_limit is not None:
             user_limit = int(user_limit)
             lim = max(0, user_limit - 1)
-            await self._db.set(key, lim)
+            ttl = await self._db.ttl(key)
+            await self._db.set(key, lim, expire=ttl)
         else:
             lim = configured_limit
-            await self._db.set(key, lim)
-            await self._db.expire(key, 3600)
+            await self._db.set(key, lim, expire=3600)
         return lim

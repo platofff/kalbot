@@ -18,8 +18,8 @@ class Objection:
     _db: aioredis.commands.Redis
     _jsonPattern: Dict[str, Union[int, bool, str]]
 
-    @classmethod
-    async def new(cls, redis_uri: str):
+    @staticmethod
+    async def new(redis_uri: str):
         self = Objection()
         self._jsonPattern = {
             "id": -1,

@@ -3,7 +3,7 @@ import asyncio
 import concurrent.futures
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
-from os import environ
+from os import getenv
 import logging
 import random
 from typing import Optional, Tuple, List, Union
@@ -16,6 +16,7 @@ from vkbottle.tools.dev_tools.uploader import PhotoMessageUploader
 from vkbottle_types.objects import MessagesMessageAttachmentType, PhotosPhotoSizesType, MessagesForeignMessage, \
     MessagesMessage
 
+from common.chat import Chat
 from common.demotivator import Demotivator
 from common.nouveau import Nouveau
 from common.objection import Objection
@@ -25,21 +26,12 @@ from common.tagsformatter import TagsFormatter
 from common.vasyacache import Vasya
 from common.ratelimit import RateLimit
 
-level = logging.INFO
-try:
-    if environ['DEBUG'] == '1':
-        level = logging.DEBUG
-        import pystuck
-
-        pystuck.run_server()
-except KeyError:
-    level = logging.INFO
-
-logging.basicConfig(level=level)
+log_level = logging.DEBUG if getenv('DEBUG') else logging.INFO
+logging.basicConfig(level=log_level)
 logger = logging.getLogger('MAIN')
 
-bot = Bot(environ['VK_BOT_TOKEN'])
-redis_uri = environ['REDIS_URI']
+bot = Bot(getenv('VK_BOT_TOKEN'))
+redis_uri = getenv('REDIS_URI')
 photo_uploader = PhotoMessageUploader(bot.api, generate_attachment_strings=True)
 docs_uploader = DocMessagesUploader(bot.api, generate_attachment_strings=True)
 pool = ProcessPoolExecutor()
@@ -48,13 +40,32 @@ img_search = ImgSearch()
 rate_limit = RateLimit(5)
 objection: Objection
 vasya_caching: Vasya
+chat: Chat
+
+
+def command_limit(command: str):
+    def decorator(func: typing.Callable):
+        async def wrapper(message: Message, *args, **kwargs):
+            if await chat.get_limit(f'vk{message.chat_id}', command, str(message.from_id)) != 0:
+                return await func(message, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def get_arguments(text: str):
     return re.sub(r'^[\S]*\s?', '', text, 1)
 
 
-@bot.on.message(text=['/начать', '/start', '/команды', '/commands', '/помощь', '/help'])
+commands = {'start': ['/начать', '/start', '/команды', '/commands', '/помощь', '/help'],
+            'demotivator': ['/демотиватор', '/demotivator', '/демотиватор <_>', '/demotivator <_>'],
+            'nouveau': ['/nouveau', '/нуво', '/ноувеау', '/nouveau <text>', '/нуво <text>', '/ноувеау <text>'],
+            'optimization': ['/оптимизация', '/optimization', '/оптимизация <text>', '/optimization <text>'],
+            'objection': ['/обжекшон', '/objection'],
+            'objection_conf': ['/обжекшонконф', '/objectionconf']}
+
+
+@bot.on.message(text=commands['start'])
+@command_limit('start')
 async def start_handler(message: Message):
     await message.answer('Команды:\n'
                          '/демотиватор - сгенерировать демотиватор со своей картинкой или из интернета. При вызове без '
@@ -134,7 +145,8 @@ def create_demotivator(args: list, url: Optional[str] = None) -> bytes:
                 search_results, url = kernel_panic()
 
 
-@bot.on.message(text=['/демотиватор', '/demotivator', '/демотиватор <_>', '/demotivator <_>'])
+@bot.on.message(text=commands['demotivator'])
+@command_limit('demotivator')
 async def demotivator_handler(message: Message, _: Optional[str] = None):
     r = await rate_limit.ratecounter(f'vk{message.from_id}')
     if type(r) != bool:
@@ -168,7 +180,8 @@ async def demotivator_handler(message: Message, _: Optional[str] = None):
         fut.add_done_callback(callback)
 
 
-@bot.on.message(text=['/nouveau', '/нуво', '/ноувеау', '/nouveau <text>', '/нуво <text>', '/ноувеау <text>'])
+@bot.on.message(text=commands['nouveau'])
+@command_limit('nouveau')
 async def nouveau_handler(message: Message, text: Optional[str] = None):
     if not message.attachments:
         _, photos, _ = await unpack_fwd(message)
@@ -197,7 +210,8 @@ async def nouveau_handler(message: Message, text: Optional[str] = None):
                              await bot.loop.run_in_executor(pool, Nouveau.create, photo, q)))
 
 
-@bot.on.message(text=['/оптимизация', '/optimization', '/оптимизация <text>', '/optimization <text>'])
+@bot.on.message(text=commands['optimization'])
+@command_limit('optimization')
 async def optimization_handler(message: Message, text: Optional[str] = None):
     try:
         await message.answer(bash_encode(text))
@@ -208,7 +222,8 @@ async def optimization_handler(message: Message, text: Optional[str] = None):
             raise e
 
 
-@bot.on.message(text=['/обжекшон', '/objection'])
+@bot.on.message(text=commands['objection'])
+@command_limit('objection')
 async def objection_handler(message: Message):
     if message.is_cropped:
         if message.from_id != message.peer_id:
@@ -259,7 +274,8 @@ async def objection_handler(message: Message):
         await message.answer(result)
 
 
-@bot.on.message(text=['/обжекшонконф', '/objectionconf'])
+@bot.on.message(text=commands['objection_conf'])
+@command_limit('objection_conf')
 async def objection_conf_handler(message: Message):
     try:
         async with objection.http.get(message.attachments[0].doc.url) as resp:
@@ -270,10 +286,19 @@ async def objection_conf_handler(message: Message):
         await message.answer('Прикрепи .objection файл с objection.lol/maker')
 
 
+@bot.on.message(text=['/чат лимит <command> <limit>', '/chat limit <command> <limit>'])
+async def chat_limit_handler(message: Message, command: str, limit: str):
+    if not (await bot.api.messages.get_conversation_members(message.peer_id)).items[0].is_admin:
+        await message.answer('Ты не админ.')
+        return
+    await message.answer(await chat.set_limit(f'vk{message.chat_id}', command, limit))
+
+
 async def main():
-    global objection, vasya_caching
+    global objection, vasya_caching, chat
     objection = await Objection.new(redis_uri)
     vasya_caching = await Vasya.new(demotivator, img_search, pool, redis_uri)
+    chat = await Chat.new(redis_uri, commands)
     bot.loop.create_task(vasya_caching.run())
 
 

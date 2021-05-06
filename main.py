@@ -291,7 +291,7 @@ async def chat_limit_handler(message: Message, command: str, limit: str):
     members = (await bot.api.messages.get_conversation_members(message.peer_id)).items
     is_admin = False
     for member in members:
-        if member.member_id == message.from_id and 'is_admin' in member.keys() and member.is_admin:
+        if member.member_id == message.from_id and member.is_admin:
             is_admin = True
             break
     if not is_admin or message.from_id < 0:

@@ -288,7 +288,7 @@ async def objection_conf_handler(message: Message):
 
 @bot.on.message(text=['/чат лимит <command> <limit>', '/chat limit <command> <limit>'])
 async def chat_limit_handler(message: Message, command: str, limit: str):
-    members = await bot.api.messages.get_conversation_members(message.peer_id)).items
+    members = await bot.api.messages.get_conversation_members(message.peer_id).items
     is_admin = False
     for member in members:
         if member.member_id == message.from_id and 'is_admin' in member.keys() and member.is_admin:
